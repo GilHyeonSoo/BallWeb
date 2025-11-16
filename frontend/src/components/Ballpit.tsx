@@ -737,7 +737,12 @@ const Ballpit = ({ className = '', followCursor = true, ...props }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return <canvas className={className} ref={canvasRef} style={{ width: '100%', height: '100%' }} />;
+  return <canvas
+  ref={canvasRef}
+  className={`fixed inset-0 w-full h-full z-0 pointer-events-none ${className}`}
+  style={{ pointerEvents: 'none', width: '100%', height: '100%' }}
+  // ...기타 props들
+  />
 };
 
 export default Ballpit;
