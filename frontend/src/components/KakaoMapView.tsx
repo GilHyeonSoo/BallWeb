@@ -112,7 +112,7 @@ export default function KakaoMapView({ center, guName, onBack }: KakaoMapViewPro
     {
       icon: <Images size={24} color="#ffffff" />,
       label: '이미지',
-      onClick: () => navigate('/mypage'),
+      onClick: () => navigate('/gallery'),
     },
     {
       icon: <Settings size={24} color="#ffffff" />,
