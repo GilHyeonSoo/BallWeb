@@ -82,7 +82,9 @@ Animalloo는 서울의 25개 구를 인터랙티브한 지도로 표현하고, �
 # Frontend
 cd frontend
 
-npm install three framer-motion lucide-react
+npm install gl-matrix three framer-motion lucide-react
+
+npm install --save-dev @types/gl-matrix
 
 # Backend
 cd ../backend
