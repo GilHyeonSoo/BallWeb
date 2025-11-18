@@ -7,6 +7,7 @@ import os
 from werkzeug.utils import secure_filename
 import time
 load_dotenv()
+from datetime import timedelta
 
 app = Flask(__name__)
 CORS(app, resources={
@@ -21,7 +22,7 @@ CORS(app, resources={
 })
 app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY', 'default-secret-key')
 app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'default-jwt-key')
-
+app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=1)  # ← 이 부분 수정
 # DB 설정
 basedir = os.path.abspath(os.path.dirname(__file__))
 db_path = os.path.join(basedir, '..', 'animalloo_en_db.sqlite')

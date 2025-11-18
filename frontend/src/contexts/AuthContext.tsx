@@ -34,14 +34,16 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const login = (newToken: string) => {
     setToken(newToken);
     localStorage.setItem('authToken', newToken); // 토큰을 로컬 스토리지에 저장
+    localStorage.setItem('tokenTime', Date.now().toString());
   };
 
   // 로그아웃 함수
   const logout = () => {
     setToken(null);
     localStorage.removeItem('authToken'); // 로컬 스토리지에서 토큰 제거
+    localStorage.removeItem('tokenTime');
   };
-
+  
   // Context가 제공할 값들을 구성
   const value: AuthContextType = {
     token,
@@ -57,6 +59,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     </AuthContext.Provider>
   );
 };
+
+
 
 // 4. 다른 컴포넌트에서 Context를 쉽게 사용하도록 도와주는 커스텀 훅
 export const useAuth = () => {

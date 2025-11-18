@@ -2,6 +2,7 @@
 
 import { motion, useMotionValue, useSpring, useTransform, AnimatePresence } from 'framer-motion';
 import { Children, cloneElement, useEffect, useMemo, useRef, useState } from 'react';
+import SearchBar from './SearchBar';
 
 function DockItem({ children, className = '', onClick, mouseX, spring, distance, magnification, baseItemSize }: any) {
   const ref = useRef<HTMLDivElement>(null);
@@ -92,14 +93,16 @@ export default function Dock({
   items,
   className = '... bg-white/90 backdrop-blur-md border border-gray-300 ...',
   spring = { mass: 0.1, stiffness: 150, damping: 12 },
-  magnification = 70,
-  distance = 200,
-  panelHeight = 68,
-  dockHeight = 256,
-  baseItemSize = 50
+  magnification = 55,
+  distance = 150,
+  panelHeight = 58,
+  dockHeight = 200,
+  baseItemSize = 40
 }: DockProps) {
   const mouseX = useMotionValue(Infinity);
   const isHovered = useMotionValue(0);
+
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   const maxHeight = useMemo(
     () => Math.max(dockHeight, magnification + magnification / 2 + 4),
@@ -107,39 +110,53 @@ export default function Dock({
   );
   const heightRow = useTransform(isHovered, [0, 1], [panelHeight, maxHeight]);
   const height = useSpring(heightRow, spring);
-
+  const processedItems = items.map(item => {
+    if (item.label === '검색' || item.label === 'Search') {
+      return {
+        ...item,
+        onClick: () => setIsSearchOpen(true)
+      };
+    }
+    return item;
+  });
   return (
-    <motion.div style={{ height }} className="mx-2 flex max-w-full items-center">
-      <motion.div
-        onMouseMove={({ pageX }) => {
-          isHovered.set(1);
-          mouseX.set(pageX);
-        }}
-        onMouseLeave={() => {
-          isHovered.set(0);
-          mouseX.set(Infinity);
-        }}
-        className={`absolute bottom-2 left-1/2 -translate-x-1/2 flex items-end w-fit gap-4 rounded-2xl bg-gray-900/90 backdrop-blur-md border border-gray-700 px-2 pb-2 ${className}`}
-        style={{ height: panelHeight }}
-        role="toolbar"
-        aria-label="Application dock"
-      >
-        {items.map((item, index) => (
-          <DockItem
-            key={index}
-            onClick={item.onClick}
-            className={item.className}
-            mouseX={mouseX}
-            spring={spring}
-            distance={distance}
-            magnification={magnification}
-            baseItemSize={baseItemSize}
-          >
-            <DockIcon>{item.icon}</DockIcon>
-            <DockLabel>{item.label}</DockLabel>
-          </DockItem>
-        ))}
+    <>
+      {/* 🔥 추가: SearchBar 컴포넌트 */}
+      <SearchBar isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
+
+      <motion.div style={{ height }} className="mx-2 flex max-w-full items-center">
+        <motion.div
+          onMouseMove={({ pageX }) => {
+            isHovered.set(1);
+            mouseX.set(pageX);
+          }}
+          onMouseLeave={() => {
+            isHovered.set(0);
+            mouseX.set(Infinity);
+          }}
+          className={`absolute bottom-2 left-1/2 -translate-x-1/2 flex items-end w-fit gap-4 rounded-2xl bg-gray-900/90 backdrop-blur-md border border-gray-700 px-2 pb-2 ${className}`}
+          style={{ height: panelHeight }}
+          role="toolbar"
+          aria-label="Application dock"
+        >
+          {/* 🔥 수정: processedItems 사용 */}
+          {processedItems.map((item, index) => (
+            <DockItem
+              key={index}
+              onClick={item.onClick}
+              className={item.className}
+              mouseX={mouseX}
+              spring={spring}
+              distance={distance}
+              magnification={magnification}
+              baseItemSize={baseItemSize}
+            >
+              <DockIcon>{item.icon}</DockIcon>
+              <DockLabel>{item.label}</DockLabel>
+            </DockItem>
+          ))}
+        </motion.div>
       </motion.div>
-    </motion.div>
+    </>
   );
 }

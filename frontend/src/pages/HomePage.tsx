@@ -51,7 +51,6 @@ function HomePage() {
   const [hoveredGu, setHoveredGu] = useState<string | null>(null);
   const [showKakaoMap, setShowKakaoMap] = useState(false);
   const [selectedGuCenter, setSelectedGuCenter] = useState({ lat: 37.5665, lng: 126.9780 });
-  const [isTransitioning, setIsTransitioning] = useState(false);
 
   useEffect(() => {
     const timer1 = setTimeout(() => setStep(2), 1500);
@@ -63,36 +62,30 @@ function HomePage() {
     const center = guCenters[gu];
     if (center) {
       setSelectedGuCenter(center);
-      setIsTransitioning(true);
-      
-      // 1.2초 후 실제 화면 전환
-      setTimeout(() => {
-        setShowKakaoMap(true);
-      }, 1200);
+      setShowKakaoMap(true);  // 즉시 전환
     }
   };
 
   const handleBack = () => {
     setShowKakaoMap(false);
     setSelectedGu(null);
-    setIsTransitioning(false);
   };
 
+  // 카카오맵 화면
   if (showKakaoMap && selectedGu) {
     return (
-      <div className="relative w-full h-screen">
+      <div className="w-full h-screen">
         <Header />
-        <div className="absolute top-16 left-0 right-0 bottom-0">  {/* ← 여기 수정 */}
-          <KakaoMapView
-            center={selectedGuCenter}
-            guName={selectedGu}
-            onBack={handleBack}
-          />
-        </div>
+        <KakaoMapView
+          center={selectedGuCenter}
+          guName={selectedGu}
+          onBack={handleBack}
+        />
       </div>
     );
   }
 
+  // 서울맵 화면
   const mapContainerClass = isLoggedIn
     ? 'absolute inset-0 z-10 transition-all pt-5 duration-1000 ease-out'
     : 'absolute inset-0 z-10 flex items-center justify-center transition-all duration-1000 ease-out';
@@ -103,45 +96,19 @@ function HomePage() {
 
   return (
     <div className="relative w-full h-screen overflow-hidden">
-      <style>{`
-        @keyframes map-shrink {
-          0% {
-            transform: scale(1);
-            opacity: 1;
-          }
-          100% {
-            transform: scale(0);
-            opacity: 0;
-          }
-        }
-        @keyframes kakao-expand {
-          0% {
-            transform: scale(0);
-            opacity: 0;
-          }
-          100% {
-            transform: scale(1);
-            opacity: 1;
-          }
-        }
-      `}</style>
-      {!showKakaoMap && (
-        <div 
-          className={mapContainerClass}
-          style={isTransitioning ? {
-            animation: 'map-shrink 1s ease-in-out forwards'
-          } : undefined}
-        >
-          <SeoulMap
-            className={mapClass}
-            selectedGu={selectedGu}
-            hoveredGu={hoveredGu}
-            setHoveredGu={setHoveredGu}
-            onSelectGu={onSelectGu}
-          />
-        </div>
-      )}
-      <div className={`absolute inset-0 z-0 w-full h-full transition-all duration-1000 ease-out ${isTransitioning ? 'opacity-0 scale-95' : 'opacity-100 scale-100'}`}>
+      {/* 서울맵 */}
+      <div className={mapContainerClass}>
+        <SeoulMap
+          className={mapClass}
+          selectedGu={selectedGu}
+          hoveredGu={hoveredGu}
+          setHoveredGu={setHoveredGu}
+          onSelectGu={onSelectGu}
+        />
+      </div>
+
+      {/* Ballpit 배경 */}
+      <div className="absolute inset-0 z-0 w-full h-full">
         <Ballpit
           className="pointer-events-none"
           count={50}
@@ -152,13 +119,14 @@ function HomePage() {
           colors={ANIMAL_THEME_COLORS}
         />
       </div>
+
       {/* 헤더 */}
       <div className="relative z-30">
         <Header />
       </div>
 
-      {/* 안내문구 - 전환 중 숨김 */}
-      {!isLoggedIn && !isTransitioning && (
+      {/* 안내문구 */}
+      {!isLoggedIn && (
         <div className="absolute inset-0 z-20 flex flex-col items-center justify-center pointer-events-none px-4">
           <div className={`transition-all duration-1000 ease-out ${step === 1 ? 'translate-y-0' : '-translate-y-16 sm:-translate-y-24'}`}>
             <AnimatedText
@@ -176,25 +144,7 @@ function HomePage() {
           </div>
         </div>
       )}
-        {isTransitioning && selectedGu && (
-        <div 
-          className="fixed inset-0 z-50"
-          style={{
-            top: '64px',        // ← 헤더 높이만큼 아래에서 시작
-            left: 0,
-            right: 0,
-            bottom: 0,
-            animation: 'kakao-expand 1s ease-out forwards'
-          }}
-        >
-          <KakaoMapView
-            center={selectedGuCenter}
-            guName={selectedGu}
-            onBack={() => {}}
-          />
-        </div>
-      )}
-      </div>
+    </div>
   );
 }
 
