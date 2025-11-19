@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import LoginModal from './LoginModal';
 import SignupModal from './SignupModal';
+import StaggeredMenu from './StaggeredMenu';
 
 export default function Header() {
   const { isLoggedIn, logout, token } = useAuth();
@@ -11,29 +12,24 @@ export default function Header() {
   const [showSignupModal, setShowSignupModal] = useState(false);
   const [nickname, setNickname] = useState<string>('');
 
-  // 로그인 시 사용자 정보 가져오기 (nickname 사용)
   useEffect(() => {
     const fetchUserInfo = async () => {
       if (!isLoggedIn || !token) {
         setNickname('');
         return;
       }
-
       try {
         const response = await fetch('http://localhost:5001/api/profile', {
-          headers: { 'Authorization': `Bearer ${token}` },
+          headers: { 'Authorization': `Bearer ${token}` }
         });
-
         if (response.ok) {
           const data = await response.json();
-          // nickname 우선, 없으면 username
           setNickname(data.nickname || data.username);
         }
       } catch (error) {
         console.error('사용자 정보 로드 실패:', error);
       }
     };
-
     fetchUserInfo();
   }, [isLoggedIn, token]);
 
@@ -55,26 +51,45 @@ export default function Header() {
   return (
     <>
       <header className="bg-transparent sticky shadow-sm top-0 z-50">
-        <div className="max-w-7xl mx-auto flex justify-between items-center px-4 sm:px-6 py-3">
-          {/* 로고 */}
-          <div 
-            onClick={() => navigate('/')}
-            className="text-lg sm:text-xl md:text-2xl font-bold text-black flex items-center gap-1 sm:gap-2 hover:text-gray-800 transition cursor-pointer drop-shadow-lg"
-          >
-            <span className="text-2xl sm:text-3xl">🐾</span>
-            <span className="hidden xs:inline">Animalloo</span>
-            <span className="xs:hidden">Animalloo</span>
+        <div className="max-w-9xl mx-auto flex items-center justify-between px-4 sm:px-6 py-3">
+          
+          {/* [수정됨] 왼쪽 영역: 메뉴와 로고를 하나의 div로 묶음 */}
+          <div className="flex items-center gap-2 sm:gap-4">
+            {/* 1. StaggeredMenu */}
+            <div className="flex items-center">
+              <StaggeredMenu
+                position="left"
+                items={[
+                  { label: '홈', ariaLabel: '홈으로 이동', link: '/kakaomap' },
+                  { label: '갤러리', ariaLabel: '갤러리로 이동', link: '/gallery' },
+                  { label: '입양', ariaLabel: '입양 페이지로 이동', link: '/adopt' },
+                  { label: '마이페이지', ariaLabel: '마이페이지로 이동', link: '/mypage' }
+                ]}
+                displaySocials={false}
+                displayItemNumbering={false}
+                colors={['#B19EEF', '#5227FF']}
+                accentColor="#5227FF"
+              />
+            </div>
+
+            {/* 2. 로고 (flex-1 제거, justify-center 제거) */}
+            <div 
+              onClick={() => navigate('/')}
+              className="flex items-center text-lg sm:text-xl md:text-2xl font-bold text-black gap-2 hover:text-gray-800 transition cursor-pointer select-none"
+            >
+              <span className="text-2xl sm:text-3xl">🐾</span>
+              <span className="hidden xs:inline">Animalloo</span>
+              <span className="xs:hidden">Animalloo</span>
+            </div>
           </div>
 
-          {/* 네비게이션 */}
+          {/* 오른쪽: 네비게이션 (기존 유지) */}
           <nav className="flex items-center gap-2 sm:gap-3 md:gap-5">
             {isLoggedIn ? (
               <>
-                {/* nickname 표시 */}
                 <span className="hidden md:block text-black font-medium drop-shadow-lg text-sm">
                   <span className="font-bold">{nickname}</span>님 환영합니다!
                 </span>
-                
                 <button 
                   onClick={() => navigate('/mypage')}
                   className="text-black font-semibold hover:text-gray-800 hover:underline drop-shadow-lg text-sm sm:text-base"
@@ -107,7 +122,6 @@ export default function Header() {
           </nav>
         </div>
       </header>
-
       <LoginModal 
         isOpen={showLoginModal} 
         onClose={() => setShowLoginModal(false)}

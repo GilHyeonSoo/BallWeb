@@ -1,0 +1,389 @@
+/* 1라인 근처 */
+.staggered-menu-wrapper {
+  position: relative;
+  width: auto;   /* 전체 화면 차지 방지 */
+  height: auto;
+  display: inline-block;
+  z-index: 40;
+}
+
+.staggered-menu-wrapper.fixed-wrapper {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 40;
+  overflow: hidden;
+}
+
+.staggered-menu-header {
+  position: relative; /* absolute -> relative 변경 */
+  /* top, left 제거 */
+  width: auto;        /* 100% -> auto 변경 */
+  display: flex;
+  align-items: center;
+  justify-content: flex-start; /* space-between -> flex-start 변경 */
+  padding: 0;         /* 2em -> 0 변경 (여백 제거) */
+  background: transparent;
+  pointer-events: auto; /* none -> auto 변경 (버튼 클릭 원활하게) */
+  z-index: 20;
+}
+
+.staggered-menu-header > * {
+  pointer-events: auto;
+}
+
+.sm-logo {
+  display: none;
+  align-items: center;
+  user-select: none;
+}
+
+.sm-logo-img {
+  display: block;
+  height: 32px;
+  width: auto;
+  object-fit: contain;
+}
+
+.sm-toggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: #000; /* 흰색(#e9e9ef)이면 안보일 수 있으므로 검정으로 변경 권장 */
+  font-weight: 500;
+  line-height: 1;
+  overflow: visible;
+  padding: 0.5rem; /* 클릭 영역 확보를 위한 약간의 패딩 */
+}
+
+.sm-toggle:focus-visible {
+  outline: 2px solid #ffffffaa;
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
+.sm-line:last-of-type {
+  margin-top: 6px;
+}
+
+.sm-toggle-textWrap {
+  position: relative;
+  display: inline-block;
+  height: 1em;
+  overflow: hidden;
+  white-space: nowrap;
+  width: var(--sm-toggle-width, auto);
+  min-width: var(--sm-toggle-width, auto);
+}
+
+.sm-toggle-textInner {
+  display: flex;
+  flex-direction: column;
+  line-height: 1;
+}
+
+.sm-toggle-line {
+  display: block;
+  height: 1em;
+  line-height: 1;
+}
+
+.sm-icon {
+  position: relative;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  will-change: transform;
+}
+
+.sm-panel-itemWrap {
+  position: relative;
+  overflow: hidden;
+  line-height: 1;
+}
+
+.sm-icon-line {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 100%;
+  height: 2px;
+  background: currentColor;
+  border-radius: 2px;
+  transform: translate(-50%, -50%);
+  will-change: transform;
+}
+
+.sm-line {
+  display: none !important;
+}
+
+/* 96라인 근처 */
+.staggered-menu-panel {
+  position: fixed;          /* 화면 기준 고정 */
+  top: 65px;                /* 헤더 높이만큼 내리기 (헤더 높이에 맞춰 숫자 조절 가능) */
+  left: 0;
+  
+  /* 기존의 고급스러운 너비 설정 복구 */
+  width: clamp(260px, 38vw, 420px); 
+  height: calc(100vh - 65px); /* 전체 높이 - 헤더 높이 */
+
+  background: white;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  display: flex;
+  flex-direction: column;
+  padding: 2em;             /* 상단 여백 조정 */
+  overflow-y: auto;
+  z-index: 40;
+  box-shadow: 5px 0 15px rgba(0,0,0,0.1); /* 입체감 추가 */
+}
+
+/* [중요] 왼쪽 메뉴일 때 위치 잡아주기 */
+[data-position='left'] .staggered-menu-panel {
+  right: auto;
+  left: 0;
+}
+
+.sm-prelayers {
+  position: fixed;          /* absolute -> fixed 변경 */
+  top: 65px;                /* 패널과 동일하게 헤더 아래로 */
+  left: 0;
+  
+  /* 패널과 동일한 크기/너비 적용 */
+  width: clamp(260px, 38vw, 420px);
+  height: calc(100vh - 65px);
+  
+  pointer-events: none;
+  z-index: 35;              /* 패널(40)보다 뒤에 있어야 함 */
+}
+
+/* 왼쪽 메뉴일 때 위치 */
+[data-position='left'] .sm-prelayers {
+  right: auto;
+  left: 0;
+}
+
+.sm-prelayer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 100%;
+  width: 100%;
+  transform: translateX(0);
+}
+
+.sm-panel-inner {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.sm-socials {
+  margin-top: auto;
+  padding-top: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.sm-socials-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--sm-accent, #ff0000);
+}
+
+.sm-socials-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.sm-socials-list .sm-socials-link {
+  opacity: 1;
+}
+
+.sm-socials-list:hover .sm-socials-link {
+  opacity: 0.35;
+}
+
+.sm-socials-list:hover .sm-socials-link:hover {
+  opacity: 1;
+}
+
+.sm-socials-link:focus-visible {
+  outline: 2px solid var(--sm-accent, #ff0000);
+  outline-offset: 3px;
+}
+
+.sm-socials-list:focus-within .sm-socials-link {
+  opacity: 0.35;
+}
+
+.sm-socials-list:focus-within .sm-socials-link:focus-visible {
+  opacity: 1;
+}
+
+.sm-socials-link {
+  font-size: 1.2rem;
+  font-weight: 500;
+  color: #111;
+  text-decoration: none;
+  position: relative;
+  padding: 2px 0;
+  display: inline-block;
+  transition:
+    color 0.3s ease,
+    opacity 0.3s ease;
+}
+
+.sm-socials-link:hover {
+  color: var(--sm-accent, #ff0000);
+}
+
+.sm-panel-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #fff;
+  text-transform: uppercase;
+}
+
+.sm-panel-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0; /* 0.5rem -> 0으로 변경 (패딩으로 간격 조절하기 위해) */
+}
+
+.sm-panel-itemWrap {
+  position: relative;
+  overflow: hidden;
+  line-height: 1;
+  
+  /* [추가된 부분] 선과 간격 만들기 */
+  border-bottom: 1px solid #ddd; /* 회색 구분선 (색상 변경 가능) */
+  padding: 25px 0;               /* 위아래 간격 (숫자가 클수록 넓어짐) */
+  width: 100%;                   /* 선이 끝까지 그어지도록 */
+}
+
+/* [추가] 마지막 항목 밑에는 선 없애기 */
+.sm-panel-list .sm-panel-itemWrap:last-child {
+  border-bottom: none;
+}
+
+.sm-panel-item {
+  position: relative;
+  color: #000;
+  font-weight: 600;     /* 굵은 폰트 유지 */
+  
+  /* [스타일 복구] */
+  font-size: 3.5rem;    /* 1.5rem -> 3.5rem (원본의 큰 사이즈로 복구) */
+  line-height: 1;       /* 줄 간격을 좁게 (원본 느낌) */
+  letter-spacing: -2px; /* 글자 사이를 좁게 (타이트한 느낌) */
+  text-transform: uppercase;
+  
+  cursor: pointer;
+  transition: background 0.25s, color 0.25s;
+  display: inline-block;
+  text-decoration: none;
+  padding-right: 1.4em; /* 숫자(01, 02..)가 들어갈 공간 확보 */
+}
+.staggered-menu-panel .sm-socials-list .sm-socials-link {
+  opacity: 1;
+  transition: opacity 0.3s ease;
+}
+
+.staggered-menu-panel .sm-socials-list:hover .sm-socials-link:not(:hover) {
+  opacity: 0.35;
+}
+
+.staggered-menu-panel .sm-socials-list:focus-within .sm-socials-link:not(:focus-visible) {
+  opacity: 0.35;
+}
+
+.staggered-menu-panel .sm-socials-list .sm-socials-link:hover,
+.staggered-menu-panel .sm-socials-list .sm-socials-link:focus-visible {
+  opacity: 1;
+}
+
+.sm-panel-itemLabel {
+  display: inline-block;
+  will-change: transform;
+  transform-origin: 50% 100%;
+}
+
+.sm-panel-item:hover {
+  color: var(--sm-accent, #5227ff);
+}
+
+.sm-panel-list[data-numbering] {
+  counter-reset: smItem;
+}
+
+.sm-panel-list[data-numbering] .sm-panel-item::after {
+  counter-increment: smItem;
+  content: counter(smItem, decimal-leading-zero);
+  position: absolute;
+  top: 0.1em;
+  right: 2.8em;
+  font-size: 18px;
+  font-weight: 400;
+  color: var(--sm-accent, #5227ff);
+  letter-spacing: 0;
+  pointer-events: none;
+  user-select: none;
+  opacity: var(--sm-num-opacity, 0);
+}
+
+@media (max-width: 1024px) {
+  .staggered-menu-panel {
+    width: 100%;
+    left: 0;
+    right: 0;
+  }
+
+  .staggered-menu-wrapper[data-open] .sm-logo-img {
+    filter: invert(100%);
+  }
+}
+
+@media (max-width: 640px) {
+  .staggered-menu-panel {
+    width: 100%;
+    left: 0;
+    right: 0;
+  }
+
+  .staggered-menu-wrapper[data-open] .sm-logo-img {
+    filter: invert(100%);
+  }
+}
+
+/* 파일 맨 아래 media query 부분에 추가하면 좋습니다 */
+@media (max-width: 640px) {
+  /* ...기존 내용... */
+
+  /* 모바일에서는 글자를 조금만 줄여줌 */
+  .sm-panel-item {
+    font-size: 2.5rem; 
+  }
+}

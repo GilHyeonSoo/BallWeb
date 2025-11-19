@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import Header from '../components/Header';
 import InfiniteMenu from '../components/InfiniteMenu';
+import AnimatedText from '../components/AnimatedText';
+import { ChevronRight } from 'lucide-react';
+
 
 const galleryItems = [
   {
@@ -42,13 +45,34 @@ const galleryItems = [
 ];
 
 export default function GalleryPage() {
+  const [started, setStarted] = useState(false);
+
   return (
     <div className="relative w-full h-screen overflow-hidden bg-white">
       <Header />
-      
-      <div className="absolute top-16 left-0 right-0 bottom-0">
+
+      {/* 배경 이미지 레이어 + 블러 */}
+      <div className="absolute top-16 left-0 right-0 bottom-0 z-0">
         <InfiniteMenu items={galleryItems} />
-      </div>
+      {/* AnimatedText 영역 */}
+      {!started && (
+        <div className="absolute inset-0 z-10 flex flex-col justify-center backdrop-blur-[8px] items-center pointer-events-none">
+          <AnimatedText
+            text="소중한 아이와의 추억을 남겨보세요!"
+            className="text-4xl sm:text-5xl md:text-6xl font-bold text-black drop-shadow-lg text-center"
+          />
+          {/* 바로가기(시작) 버튼 */}
+          <button
+            onClick={() => setStarted(true)}
+            className="mt-6 px-4 py-3 bg-blue-500 hover:bg-blue-600 text-white text-lg rounded-full shadow-lg flex items-center gap-2 transition pointer-events-auto"
+            style={{ pointerEvents: 'auto' }}
+          >
+            시작하기
+            <ChevronRight size={22} />
+          </button>
+        </div>
+      )}
+    </div>
     </div>
   );
 }
