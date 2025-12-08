@@ -61,8 +61,8 @@ export default function Header() {
                 position="left"
                 items={[
                   { label: '홈', ariaLabel: '홈으로 이동', link: '/kakaomap' },
-                  { label: '갤러리', ariaLabel: '갤러리로 이동', link: '/gallery' },
-                  { label: '입양', ariaLabel: '입양 페이지로 이동', link: '/adopt' },
+                  { label: '입양', ariaLabel: '입양 페이지로 이동', link: '/gallery' },
+                  { label: '질문', ariaLabel: '질문 페이지로 이동', link: '/questions' },
                   { label: '마이페이지', ariaLabel: '마이페이지로 이동', link: '/mypage' }
                 ]}
                 displaySocials={false}
