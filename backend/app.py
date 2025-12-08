@@ -9,6 +9,7 @@ import time
 load_dotenv()
 from datetime import timedelta
 import google.generativeai as genai
+import requests
 
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
 if GEMINI_API_KEY:
@@ -322,6 +323,46 @@ def chat():
         print(f"에러 발생: {e}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/animals', methods=['GET'])
+def get_animals():
+    # 1. 서울시 API 키 가져오기
+    # .env 파일에 'SEOUL_API_KEY'가 없으면 'sample'을 씁니다.
+    SEOUL_API_KEY = os.getenv('SEOUL_API_KEY', 'sample') 
+    
+    # 2. 서비스명 (틀리면 400 에러 남)
+    SERVICE_NAME = 'vPetInfo' 
 
+    start_index = request.args.get('start', 1)
+    end_index = request.args.get('end', 50)
+
+    # URL 생성
+    url = f"http://openapi.seoul.go.kr:8088/{SEOUL_API_KEY}/json/{SERVICE_NAME}/{start_index}/{end_index}/"
+    
+    # [디버깅] 요청하는 URL이 맞는지 터미널에 출력
+    print(f"서울시 요청 URL: {url}") 
+
+    try:
+        response = requests.get(url)
+        data = response.json()
+        
+        # [성공] 데이터가 정상적으로 있는 경우
+        if SERVICE_NAME in data:
+            print(f"데이터 {len(data[SERVICE_NAME]['row'])}개 가져오기 성공!")
+            return jsonify(data[SERVICE_NAME]), 200
+            
+        # [실패] 서울시에서 에러 메시지를 보낸 경우 (여기가 400 원인!)
+        elif 'RESULT' in data:
+            error_code = data['RESULT']['CODE']
+            error_msg = data['RESULT']['MESSAGE']
+            print(f"❌ 서울시 API 에러 ({error_code}): {error_msg}") # 터미널 확인용
+            return jsonify({'error': f"서울시 응답: {error_msg}"}), 400
+            
+        else:
+            return jsonify({'error': '데이터를 찾을 수 없습니다.'}), 404
+
+    except Exception as e:
+        print(f"서버 내부 에러: {e}")
+        return jsonify({'error': '서울시 서버와 통신 중 오류가 발생했습니다.'}), 500
+    
 if __name__ == '__main__':
     app.run(debug=True, port=5001)
