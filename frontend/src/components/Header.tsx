@@ -50,7 +50,7 @@ export default function Header() {
 
   return (
     <>
-      <header className="bg-transparent sticky shadow-sm top-0 z-50">
+      <header className="bg-white sticky shadow-sm top-0 z-50">
         <div className="max-w-9xl mx-auto flex items-center justify-between px-4 sm:px-6 py-3">
           
           {/* [수정됨] 왼쪽 영역: 메뉴와 로고를 하나의 div로 묶음 */}

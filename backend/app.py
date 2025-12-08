@@ -8,6 +8,11 @@ from werkzeug.utils import secure_filename
 import time
 load_dotenv()
 from datetime import timedelta
+import google.generativeai as genai
+
+GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
 
 app = Flask(__name__)
 CORS(app, resources={
@@ -269,6 +274,53 @@ def verify_password():
 def index():
     return jsonify({'message': 'Backend is running with Animalloo DB!'})
 
+@app.route('/api/chat', methods=['POST'])
+def chat():
+    # ... (기존 API 키 확인 코드 등은 그대로 유지) ...
+    api_key = os.getenv('GEMINI_API_KEY')
+    if not api_key:
+        return jsonify({'error': 'API Key Error'}), 500
+
+    try:
+        data = request.get_json()
+        user_message = data.get('message')
+        if not user_message:
+            return jsonify({'error': '메시지가 없습니다.'}), 400
+
+        # ▼▼▼ [수정] 프롬프트 설정 부분 시작 ▼▼▼
+        
+        # 1. AI에게 부여할 역할(페르소나) 정의
+        system_prompt = """
+        너는 유기동물 보호 및 입양 플랫폼 '애니멀루(Animalloo)'의 친절한 AI 챗봇이야.
+        너의 역할과 대화 규칙은 다음과 같아:
+
+        1. [말투] 친근하고 다정하게 존댓말을 써줘. (해요체 사용)
+        2. [표현] 강아지(🐶), 고양이(🐱), 하트(💖) 등 이모지를 적절히 섞어서 대답해줘.
+        3. [전문성] 유기동물 입양, 반려동물 상식, 보호소 위치 등에 대해 아는 대로 친절히 설명해줘.
+        4. [한계] 만약 의학적이거나 전문적인 판단이 필요한 질문(질병 진단 등)이라면, "정확한 진단은 수의사 선생님께 상담받아보시는 게 좋아요"라고 안내해줘.
+        5. [길이] 답변은 너무 길지 않게, 핵심을 잘 전달해줘.
+        """
+
+        # 2. 실제 AI에게 보낼 메시지 조합 (프롬프트 + 유저 질문)
+        full_message = f"{system_prompt}\n\n사용자 질문: {user_message}"
+
+        # 3. 모델 설정 (사용하시던 모델명 유지: gemini-1.5-flash 또는 gemini-pro)
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel('gemini-2.5-flash') 
+        
+        # 4. 조합된 메시지로 요청
+        response = model.generate_content(full_message)
+        
+        # ▲▲▲ [수정] 프롬프트 설정 부분 끝 ▲▲▲
+
+        if not response.text:
+            return jsonify({'error': '응답이 없습니다.'}), 500
+
+        return jsonify({'response': response.text}), 200
+
+    except Exception as e:
+        print(f"에러 발생: {e}")
+        return jsonify({'error': str(e)}), 500
 
 
 if __name__ == '__main__':

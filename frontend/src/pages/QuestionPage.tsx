@@ -28,6 +28,7 @@ export default function QuestionPage() {
   const handleSendMessage = async (text: string) => {
     if (!text.trim()) return;
 
+    // 1. 유저 메시지 화면에 즉시 추가
     const userMessage: Message = {
       id: Date.now(),
       text: text,
@@ -36,19 +37,45 @@ export default function QuestionPage() {
     };
     setMessages((prev) => [...prev, userMessage]);
     setInputText('');
-    setIsLoading(true);
+    setIsLoading(true); // 로딩 시작
 
-    // LLM 응답 시뮬레이션
-    setTimeout(() => {
-      const botMessage: Message = {
+    try {
+      // 2. 백엔드 API 호출 (Gemini에게 질문)
+      const response = await fetch('http://localhost:5001/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ message: text }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        // 3. 성공 시 봇 응답 추가
+        const botMessage: Message = {
+          id: Date.now() + 1,
+          text: data.response, // 백엔드에서 준 답변
+          sender: 'bot',
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, botMessage]);
+      } else {
+        // 실패 시 에러 메시지
+        throw new Error(data.error || '오류가 발생했습니다.');
+      }
+    } catch (error) {
+      console.error('Chat Error:', error);
+      const errorMessage: Message = {
         id: Date.now() + 1,
-        text: '좋은 질문이네요! 아직 실제 LLM 모델과는 연결되지 않았지만, 곧 똑똑한 답변을 드릴 수 있도록 준비 중입니다. \n\n궁금한 점이 더 있으신가요?',
+        text: '죄송합니다. 오류가 발생하여 답변을 가져올 수 없습니다.',
         sender: 'bot',
         timestamp: new Date(),
       };
-      setMessages((prev) => [...prev, botMessage]);
-      setIsLoading(false);
-    }, 1500);
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false); // 로딩 종료
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
