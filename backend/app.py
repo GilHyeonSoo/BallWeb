@@ -1,7 +1,7 @@
+import os
+from dotenv import load_dotenv
 from flask import Flask, request, jsonify 
 from flask_cors import CORS
-from dotenv import load_dotenv
-import os
 import time
 from datetime import timedelta
 import google.generativeai as genai
@@ -10,6 +10,7 @@ from sparql_client import KnowledgeGraph
 from utils import ANIMAL_MAP, map_text_to_uri
 from SPARQLWrapper import SPARQLWrapper, JSON 
 import logging
+from graphdb_api import graphdb_bp
 
 load_dotenv()
 
@@ -31,6 +32,125 @@ CORS(app, resources={
 log = logging.getLogger('werkzeug')
 log.setLevel(logging.ERROR)
 
+@app.route('/api/facility/detail', methods=['GET'])
+def get_facility_detail():
+    facility_id = request.args.get('id')
+    if not facility_id: return jsonify({"error": "No id provided"}), 400
+
+    clean_id = facility_id.strip().strip('<').strip('>')
+    print(f"[DEBUG] 조회 ID: {clean_id}")
+
+    try:
+        sparql = SPARQLWrapper(GRAPHDB_URL)
+        sparql.setReturnFormat(JSON)
+
+        # -------------------------------------------------------
+        # [Step 1] 기본 정보 조회 (시간 정보 제외)
+        # -------------------------------------------------------
+        query_basic = f"SELECT ?p ?o WHERE {{ <{clean_id}> ?p ?o . }}"
+        sparql.setQuery(query_basic)
+        results_basic = sparql.query().convert()
+
+        data = {}
+        for result in results_basic["results"]["bindings"]:
+            pred_uri = result["p"]["value"]
+            val = result["o"]["value"]
+            key = pred_uri.split('#')[-1].split('/')[-1]
+            
+            # 시간 관련 키는 무시 (덮어쓰기 방지)
+            if key in ['opens', 'closes', 'dayOfWeek', 'hours', 'facility']:
+                continue
+            data[key] = val
+
+        # -------------------------------------------------------
+        # [Step 2] 운영 시간 조회
+        # -------------------------------------------------------
+        # 가장 단순하게 접근: "요일 정보가 있는 모든 행을 달라"
+        # 단, RDF 구조상 짝이 안 맞을 수 있으므로 최대한 긁어옵니다.
+        query_hours = f"""
+        SELECT ?day ?open ?close
+        WHERE {{
+            # Case 1: 시설 자체가 속성을 가진 경우
+            {{
+                <{clean_id}> ?pDay ?day .
+                FILTER (STRENDS(STR(?pDay), "dayOfWeek"))
+                
+                OPTIONAL {{ 
+                    <{clean_id}> ?pOpen ?open .
+                    FILTER (STRENDS(STR(?pOpen), "opens"))
+                }}
+                OPTIONAL {{ 
+                    <{clean_id}> ?pClose ?close .
+                    FILTER (STRENDS(STR(?pClose), "closes"))
+                }}
+            }}
+            UNION
+            # Case 2: 별도 노드로 연결된 경우
+            {{
+                ?hoursNode ?pFac <{clean_id}> .
+                ?hoursNode ?pDay ?day .
+                FILTER (STRENDS(STR(?pDay), "dayOfWeek"))
+                
+                OPTIONAL {{ 
+                    ?hoursNode ?pOpen ?open .
+                    FILTER (STRENDS(STR(?pOpen), "opens"))
+                }}
+                OPTIONAL {{ 
+                    ?hoursNode ?pClose ?close .
+                    FILTER (STRENDS(STR(?pClose), "closes"))
+                }}
+            }}
+        }}
+        """
+        
+        sparql.setQuery(query_hours)
+        results_hours = sparql.query().convert()
+        
+        hours_list = []
+        day_order = { 
+            "Monday":1, "Tuesday":2, "Wednesday":3, "Thursday":4, "Friday":5, "Saturday":6, "Sunday":7,
+            "Mon":1, "Tue":2, "Wed":3, "Thu":4, "Fri":5, "Sat":6, "Sun":7 
+        }
+
+        bindings = results_hours["results"]["bindings"]
+        
+        for res in bindings:
+            day_full = res["day"]["value"]
+            day = day_full.split('/')[-1] if '/' in day_full else day_full
+            
+            open_time = res.get("open", {}).get("value", "")[:5]
+            close_time = res.get("close", {}).get("value", "")[:5]
+            
+            time_str = f"{open_time} ~ {close_time}" if open_time else "시간 정보 없음"
+            
+            hours_list.append({
+                "order": day_order.get(day, 99),
+                "text": f"{day}: {time_str}"
+            })
+
+        if hours_list:
+            # 요일 순 정렬
+            hours_list.sort(key=lambda x: x["order"])
+            
+            # 중복 텍스트 제거 (단순 문자열 비교)
+            # RDF 쿼리 특성상 동일한 내용이 중복될 수 있으므로 제거
+            unique_text_list = []
+            seen = set()
+            for h in hours_list:
+                if h["text"] not in seen:
+                    unique_text_list.append(h["text"])
+                    seen.add(h["text"])
+            
+            data['hours'] = "\n".join(unique_text_list)
+            print(f"[DEBUG] 운영 시간 {len(unique_text_list)}줄 조회 성공")
+        else:
+            print("[DEBUG] 운영 시간 데이터 없음")
+
+        return jsonify(data), 200
+
+    except Exception as e:
+        print(f"[ERROR] {e}")
+        return jsonify({"error": str(e)}), 500
 # ========== API 라우트 ==========
 def get_graphdb_context(keyword):
     """

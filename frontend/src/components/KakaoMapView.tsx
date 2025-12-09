@@ -21,11 +21,14 @@ interface KakaoMapViewProps {
   center: { lat: number; lng: number };
   guName: string;
   onBack: () => void;
+  onMarkerClick?: (facility: any) => void; 
 }
 
 export default function KakaoMapView({ center, guName, onBack }: KakaoMapViewProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<any>(null);
+
+  const activeInfoWindow = useRef<any>(null);
 
   const [facilities, setFacilities] = useState<Facility[]>([]);
   const [mapType, setMapType] = useState<'roadmap' | 'skyview'>('roadmap');

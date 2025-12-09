@@ -1,6 +1,8 @@
+import React, { useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import KakaoMapView from '../components/KakaoMapView';
 import Header from '../components/Header';
+import { X, Loader2 } from 'lucide-react';
 
 // 구 중심 좌표 정의 (HomePage와 동일)
 const guCenters = {
