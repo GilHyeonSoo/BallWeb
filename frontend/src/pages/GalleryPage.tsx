@@ -14,23 +14,14 @@ const getYoutubeThumbnail = (url: string) => {
     : null;
 };
 
-// [추가] HTML 태그 제거 및 텍스트 정리 함수 (소개글용)
+// HTML 태그 제거 및 텍스트 정리 함수
 const cleanText = (html: string) => {
   if (!html) return "";
-  
-  // 1. <br> 태그를 줄바꿈 문자로 변환
   let formatted = html.replace(/<br\s*\/?>/gi, '\n');
-  
-  // 2. <p> 태그가 끝날 때마다 줄바꿈 두 번 (문단 나눔)
   formatted = formatted.replace(/<\/p>/gi, '\n\n');
-
-  // 3. HTML 엔티티(&lt; 등) 해석 및 태그 제거
   const doc = new DOMParser().parseFromString(formatted, 'text/html');
   let text = doc.body.textContent || "";
-  
-  // 4. 불필요한 공백 정리 (연속된 줄바꿈은 최대 2개까지만 허용 등)
   text = text.trim().replace(/\n{3,}/g, '\n\n');
-  
   return text;
 };
 
@@ -51,11 +42,14 @@ export default function GalleryPage() {
             let imageUrl = getYoutubeThumbnail(animal.MOVIE_URL);
             if (!imageUrl) imageUrl = 'https://placehold.co/600x600?text=No+Image';
 
-            // [수정] 상세 정보(details) 객체를 추가해서 전달
+            // [수정] 백엔드의 knowledge_graph 데이터를 가져옵니다.
+            // 데이터가 없거나 비어있을 경우를 대비해 안전하게 빈 배열([])을 기본값으로 둡니다.
+            const medicalTags = animal.knowledge_graph?.medical_risks || [];
+
             return {
               image: imageUrl,
               link: animal.MOVIE_URL || '#',
-              title: animal.ANIMAL_NM, // 이름
+              title: animal.ANIMAL_NM, 
               
               // InfiniteMenu에서 사용할 상세 데이터 묶음
               details: {
@@ -64,7 +58,10 @@ export default function GalleryPage() {
                 age: animal.ANIMAL_BRITH_YMD || animal.AGE || '정보없음',
                 weight: animal.WEIGHT_KG ? `${animal.WEIGHT_KG}kg` : '정보없음',
                 status: animal.ADOPT_STATUS || '보호중',
-                intro: cleanText(animal.CONT)
+                intro: cleanText(animal.CONT),
+                
+                // [추가] 여기가 핵심입니다! 의료 정보를 'tags'라는 이름으로 넘겨줍니다.
+                tags: medicalTags 
               }
             };
           });

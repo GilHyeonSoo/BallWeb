@@ -694,14 +694,26 @@ export default function InfiniteMenu({ items = [] }) {
           {/* 오른쪽: 소개글 (확장 기능 적용) */}
           <div className={`info-panel right animate-slide-in-right ${isExpanded ? 'expanded' : ''}`}>
             <h3 className="story-title">나의 이야기</h3>
-            
+  
             {/* 텍스트 영역: 확장 시 스크롤 가능 */}
             <div className="story-content custom-scrollbar">
               <p className="story-desc">
                 {displayIntro}
               </p>
+              {isExpanded && details.tags && details.tags.length > 0 && (
+                <div className="medical-tags-inline">
+                  <span className="tags-label-inline">⚠️ 함께 알아두면 좋은 건강 정보</span>
+                  <div className="tags-wrapper-inline">
+                    {details.tags.map((tag: string, index: number) => (
+                      <span key={index} className="medical-tag-inline">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
-
+          
             <div className="button-group">
               <button onClick={toggleExpand} className="detail-btn">
                 {isExpanded ? "접기" : "자세히 보기"} {isExpanded ? "\u2191" : "\u2193"}

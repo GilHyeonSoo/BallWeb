@@ -196,7 +196,7 @@ export default function QuestionPage() {
             {/* 초기 화면일 때 추천 질문 칩 */}
             {!isChatStarted && (
               <div className="mt-8 flex flex-wrap justify-center gap-3">
-                {['입양 절차가 궁금해', '가까운 보호소 찾기', '봉사활동 신청', '유기견 후원 방법'].map((q, idx) => (
+                {['무엇에 대해 질문할 수 있나요?', '우리 강아지 상태 좀 봐주세요', '정보들을 무조건 믿어도 되나요?'].map((q, idx) => (
                   <button
                     key={idx}
                     onClick={() => handleSendMessage(q)}

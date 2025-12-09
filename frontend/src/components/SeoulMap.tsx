@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import BubbleChart from './BubbleChart'; // [추가]
 
 export type SeoulMapProps = {
   selectedGu: string | null;
@@ -48,58 +49,95 @@ export default function SeoulMap({
     const hoverFill = "#FFD46B";
     const selectedFill = "#FFB800";
 
-    const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
+    const [chartPos, setChartPos] = useState({ x: 0, y: 0 });
+    const [petStats, setPetStats] = useState<any[]>([]);
+	useEffect(() => {
+        if (!hoveredGu) {
+            setPetStats([]); // 마우스 떼면 데이터 초기화
+            return;
+        }
+
+        const fetchStats = async () => {
+            try {
+                // 백엔드 API 호출 (300ms 딜레이를 주어 너무 잦은 요청 방지 가능)
+                const res = await fetch(`http://localhost:5001/api/stats/pet-names?gu=${hoveredGu}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    setPetStats(data);
+                } else {
+                    setPetStats([]);
+                }
+            } catch (error) {
+                console.error("통계 로드 실패:", error);
+                setPetStats([]);
+            }
+        };
+
+        // 디바운싱: 마우스가 빠르게 지나갈 때는 요청 안 보내고, 잠깐 멈췄을 때 요청
+        const timer = setTimeout(fetchStats, 100); 
+        return () => clearTimeout(timer);
+
+    }, [hoveredGu]);
 
     const makeProps = (id: string) => ({
-        onMouseEnter: () => setHoveredGu(nameMap[id]),
-        onMouseLeave: () => setHoveredGu(null),
+        // [핵심 수정] 마우스가 들어간 순간, 해당 'path'의 중심 좌표를 계산합니다.
+        onMouseEnter: (e: React.MouseEvent<SVGPathElement>) => {
+            const target = e.target as SVGPathElement;
+            const rect = target.getBoundingClientRect(); // 요소의 사각형 영역 정보를 가져옴
+            
+            // 사각형의 정중앙 좌표 계산
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
 
-        onMouseMove: (e: React.MouseEvent<SVGPathElement>) => {
-            const svg = (e.target as SVGPathElement).ownerSVGElement!;
-            const pt = svg.createSVGPoint();
-
-            pt.x = e.clientX;
-            pt.y = e.clientY;
-
-            const cursor = pt.matrixTransform(svg.getScreenCTM()!.inverse());
-
-            setTooltipPos({
-                x: cursor.x + 10,
-                y: cursor.y + 10
-            });
+            setChartPos({ x: centerX, y: centerY });
+            setHoveredGu(nameMap[id]);
         },
+        
+        onMouseLeave: () => setHoveredGu(null),
+        
+        // onMouseMove는 더 이상 필요 없으므로 삭제합니다. (마우스 따라다니기 방지)
 
         onClick: () => onSelectGu(nameMap[id]),
 
-        fill:
-            selectedGu === nameMap[id]
-                ? selectedFill
-                : hoveredGu === nameMap[id]
-                    ? hoverFill
-                    : defaultFill,
-
-		
+        fill: selectedGu === nameMap[id] ? selectedFill : hoveredGu === nameMap[id] ? hoverFill : defaultFill,
 
         style: { 
-			cursor: "pointer",
-			transition: "transform 0.2s ease-out",
-			transformOrigin: "center",
-			transformBox: "fill-box",
-			transform: hoveredGu === nameMap[id] ? "scale(1.2)" : "scale(1)",
-			stroke: "#FFFFFF",  // 흰색 테두리
-			strokeWidth: 5,     // 테두리 두께 2
-			strokeLinejoin: "round",
-		} as React.CSSProperties,
+            cursor: "pointer",
+            transition: "all 0.3s ease", // 부드러운 전환
+            transformOrigin: "center",
+            transformBox: "fill-box",
+            // hover 시 살짝 커지는 효과 유지
+            transform: hoveredGu === nameMap[id] ? "scale(1.05)" : "scale(1)",
+            stroke: "#FFFFFF",
+            strokeWidth: hoveredGu === nameMap[id] ? 3 : 1,
+            strokeLinejoin: "round",
+            filter: hoveredGu === nameMap[id] ? "drop-shadow(0 0 10px rgba(255, 184, 0, 0.5))" : "none"
+        } as React.CSSProperties,
     });
 	return (
     <div className="flex justify-center w-full pt-20" style={{ position: 'relative' }}>
+		{hoveredGu && petStats.length > 0 && (
+            <BubbleChart 
+                data={petStats} 
+                guName={hoveredGu}
+                x={chartPos.x} 
+                y={chartPos.y} 
+            />
+        )}
         <svg
-			className={className}      // 부모에서 전달받은 클래스명 적용
-			width="100%"             // 부모 크기에 맞추기 위한 상대 크기 명시
-			height="100%"
-			viewBox="0 0 1500 1500"    // 실제 서울맵 SVG에 맞게 유지
-			xmlns="http://www.w3.org/2000/svg"
-		>
+          className={className}
+          width="100%"
+          height="100%"
+          viewBox="0 0 1500 1500"
+          xmlns="http://www.w3.org/2000/svg"
+          
+          // [핵심 수정] SVG 전체에서 마우스 움직임을 감지하여 '화면 기준 좌표' 저장
+          onMouseMove={(e) => {
+              // e.clientX, e.clientY는 브라우저 화면 기준 절대 좌표입니다.
+              // BubbleChart는 fixed 포지션을 쓰므로 이 좌표가 필요합니다.
+              setTooltipPos({ x: e.clientX, y: e.clientY });
+          }}
+      >
             <path
                 id="Dobong-gu"
                 d="M964.064,164.667
