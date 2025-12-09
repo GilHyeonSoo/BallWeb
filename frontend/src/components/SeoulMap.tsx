@@ -92,7 +92,7 @@ export default function SeoulMap({
 		} as React.CSSProperties,
     });
 	return (
-    <div className="flex justify-center w-full" style={{ position: 'relative' }}>
+    <div className="flex justify-center w-full pt-20" style={{ position: 'relative' }}>
         <svg
 			className={className}      // 부모에서 전달받은 클래스명 적용
 			width="100%"             // 부모 크기에 맞추기 위한 상대 크기 명시

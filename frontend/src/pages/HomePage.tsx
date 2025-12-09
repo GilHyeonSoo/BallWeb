@@ -1,9 +1,7 @@
 import { useState, useEffect } from 'react';
 import Header from '../components/Header';
 import Ballpit from '../components/Ballpit';
-import AnimatedText from '../components/AnimatedText';
 import SeoulMap from '../components/SeoulMap';
-import { useAuth } from '../contexts/AuthContext';
 
 const ANIMAL_THEME_COLORS = [
   '#FFC1CC',
@@ -16,7 +14,6 @@ const ANIMAL_THEME_COLORS = [
 ];
 
 function HomePage() {
-  const { isLoggedIn } = useAuth();
   const [step, setStep] = useState(1);
   const [selectedGu, setSelectedGu] = useState<string | null>(null);
   const [hoveredGu, setHoveredGu] = useState<string | null>(null);
@@ -31,13 +28,9 @@ function HomePage() {
   };
 
   // 서울맵 화면
-  const mapContainerClass = isLoggedIn
-    ? 'absolute inset-0 z-10 transition-all pt-5 duration-1000 ease-out'
-    : 'absolute inset-0 z-10 flex items-center justify-center transition-all duration-1000 ease-out';
+  const mapContainerClass = 'absolute inset-0 z-10 flex items-center justify-center transition-all duration-1000 ease-out';
 
-  const mapClass = isLoggedIn
-    ? 'w-[500px] h-[500px] md:w-[600px] md:h-[600px] lg:w-[800px] lg:h-[800px] pointer-events-auto transition-all duration-1000 ease-out'
-    : 'w-[400px] h-[400px] sm:w-[500px] sm:h-[500px] blur-lg pointer-events-none transition-all duration-1000 ease-out';
+  const mapClass = 'w-[500px] h-[500px] md:w-[600px] md:h-[600px] lg:w-[800px] lg:h-[800px] pointer-events-auto transition-all duration-1000 ease-out';
 
   return (
     <div className="relative w-full h-screen overflow-hidden">
@@ -69,26 +62,6 @@ function HomePage() {
       <div className="relative z-30">
         <Header />
       </div>
-
-      {/* 안내문구 */}
-      {!isLoggedIn && (
-        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center pointer-events-none px-4">
-          <div className={`transition-all duration-1000 ease-out ${step === 1 ? 'translate-y-0' : '-translate-y-16 sm:-translate-y-24'}`}>
-            <AnimatedText
-              text="안녕하세요!"
-              className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold text-black drop-shadow-2xl text-center"
-            />
-          </div>
-          <div className={`mt-2 sm:mt-3 transition-all duration-1000 ease-out ${step === 1 ? 'opacity-0 translate-y-8' : 'opacity-100 translate-y-0'}`}>
-            {step === 2 && (
-              <AnimatedText
-                text="로그인하여 서비스를 받아보세요!"
-                className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-semibold text-black/90 drop-shadow-lg text-center"
-              />
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
