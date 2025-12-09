@@ -5,7 +5,7 @@ import os
 import time
 from datetime import timedelta
 import google.generativeai as genai
-
+import requests
 load_dotenv()
 
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
