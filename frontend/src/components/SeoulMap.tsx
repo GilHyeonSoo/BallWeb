@@ -50,8 +50,6 @@ export default function SeoulMap({
 
     const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
 
-
-    // 공통 props 생성 함수
     const makeProps = (id: string) => ({
         onMouseEnter: () => setHoveredGu(nameMap[id]),
         onMouseLeave: () => setHoveredGu(null),
@@ -94,7 +92,7 @@ export default function SeoulMap({
 		} as React.CSSProperties,
     });
 	return (
-    <div className="flex justify-center w-full">
+    <div className="flex justify-center w-full" style={{ position: 'relative' }}>
         <svg
 			className={className}      // 부모에서 전달받은 클래스명 적용
 			width="100%"             // 부모 크기에 맞추기 위한 상대 크기 명시
@@ -570,23 +568,46 @@ export default function SeoulMap({
 	C730.596,766.053,735.563,764.919,737.012,767.305z"
                 {...makeProps("Yongsan-gu")}
             />
-            {/* 🔥 툴팁 */}
-            {hoveredGu && (
-                <foreignObject
-                    x={tooltipPos.x}
-                    y={tooltipPos.y}
-                    width="135"
-                    height="60"
-                >
-                    <div
-                        xmlns="http://www.w3.org/1999/xhtml"
-                        className="bg-black text-white text-xs px-5 py-4 rounded-md shadow pointer-events-none"
-                    >
-                        {hoveredGu}
-                    </div>
-                </foreignObject>
-            )}
         </svg>
+
+        {/* 
+            🚀 화면 오른쪽에 구 이름을 크게 띄워주는 코드 
+            pointerEvents: 'none' 덕분에 글자가 지도를 가려도 클릭이 가능합니다.
+        */}
+        <div
+            style={{
+                position: "fixed",
+                top: "20%",
+                right: "5%",
+                fontSize: "5rem",        // 글자 크기 조금 더 키움
+                fontWeight: "900",       // 더 굵게
+                pointerEvents: "none",
+                zIndex: 50,
+                whiteSpace: "nowrap",
+                
+                // ✨ 그라디언트 텍스트 효과 (핵심)
+                backgroundImage: "linear-gradient(to right, #ff7e5f, #feb47b, #ff7e5f)", // 원하는 색상 조합
+                backgroundSize: "200% auto", // 배경을 2배로 늘려서 움직일 공간 확보
+                backgroundClip: "text",
+                WebkitBackgroundClip: "text", // 크롬, 사파리 호환
+                color: "transparent",         // 글자색을 투명하게 해서 배경이 보이게 함
+                
+                // 🔄 애니메이션 정의 (3초 동안 무한 반복)
+                animation: "gradientMove 3s linear infinite"
+            }}
+        >
+            {/* CSS 애니메이션 정의를 위한 style 태그 */}
+            <style>
+                {`
+                    @keyframes gradientMove {
+                        0% { background-position: 0% 50%; }
+                        100% { background-position: 200% 50%; }
+                    }
+                `}
+            </style>
+            
+            {hoveredGu ? hoveredGu : ""}
+        </div>
     </div>
-);
+  );
 }
