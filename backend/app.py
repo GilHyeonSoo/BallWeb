@@ -22,7 +22,7 @@ app = Flask(__name__)
 SPARQL_ENDPOINT = "http://localhost:7200/repositories/test" 
 sparql = SPARQLWrapper(SPARQL_ENDPOINT)
 app.register_blueprint(graphdb_bp)
-
+GRAPHDB_URL = "http://localhost:7200/repositories/test" 
 CORS(app, resources={
     r"/api/*": {
         "origins": ["http://localhost:5173"],

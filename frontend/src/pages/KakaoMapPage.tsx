@@ -93,7 +93,7 @@ export default function KakaoMapPage() {
 
   return (
     <div className="flex flex-col h-screen w-full relative overflow-hidden">
-      <Header title={`${guName} 동물 보호 센터`} onBack={handleBack} />
+      <Header title={`동물 보호 센터`} onBack={handleBack} />
       
       <div className="flex-1 relative flex">
         <div className="w-full h-full">
