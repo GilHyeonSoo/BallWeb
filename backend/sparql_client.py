@@ -2,7 +2,7 @@ from SPARQLWrapper import SPARQLWrapper, JSON
 
 # GraphDB 설정 (로컬 실행 기준)
 # 저장소 이름이 'animalloo-repo'가 아니라면 본인 설정에 맞게 수정하세요.
-GRAPHDB_URL = "http://localhost:7200/repositories/knowledgemap"
+GRAPHDB_URL = "http://localhost:7200/repositories/test"
 
 class KnowledgeGraph:
     def __init__(self):

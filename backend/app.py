@@ -18,10 +18,11 @@ GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
 if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
 
-SPARQL_ENDPOINT = "http://localhost:7200/repositories/knowledgemap" 
-sparql = SPARQLWrapper(SPARQL_ENDPOINT)
-
 app = Flask(__name__)
+SPARQL_ENDPOINT = "http://localhost:7200/repositories/test" 
+sparql = SPARQLWrapper(SPARQL_ENDPOINT)
+app.register_blueprint(graphdb_bp)
+
 CORS(app, resources={
     r"/api/*": {
         "origins": ["http://localhost:5173"],

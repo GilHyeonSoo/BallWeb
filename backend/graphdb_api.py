@@ -3,7 +3,7 @@ import requests
 
 graphdb_bp = Blueprint("graphdb", __name__)
 
-GRAPHDB_ENDPOINT = "http://localhost:7200/repositories/test1234"
+GRAPHDB_ENDPOINT = "http://localhost:7200/repositories/test"
 
 gu_map = {
     "용산구": "http://www.wikidata.org/entity/Q50429",

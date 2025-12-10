@@ -1,21 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
-import { Plus, Minus, Map, Satellite, Search, Settings, Navigation } from 'lucide-react';
-import SettingsModal from './SettingsModal';
-import SearchBar from './SearchBar';
-
-
-// 1. 데이터 타입 정의 (운영시간 필드 추가됨 🌟)
-interface Facility {
-  id: string | number; 
-  name: string;        
-  category: string;    
-  lat: number;         
-  lng: number;         
-  address: string;     
-  phone?: string;      
-  url?: string;        
-  openinghours?: string; // 🕒 운영시간 (배변봉투함은 이 값이 없음)
-}
+import { useEffect, useRef, useState } from "react";
+import { Plus, Minus, Map, Satellite, Search, Settings, Navigation } from "lucide-react";
+import Chatbot from "./Chatbot";
+import SettingsModal from "./SettingsModal";
+import SearchBar from "./SearchBar";
 
 interface KakaoMapViewProps {
   center: { lat: number; lng: number };
@@ -24,219 +11,218 @@ interface KakaoMapViewProps {
   onMarkerClick?: (facility: any) => void; 
 }
 
-export default function KakaoMapView({ center, guName, onBack }: KakaoMapViewProps) {
-  const mapContainer = useRef<HTMLDivElement>(null);
+export default function KakaoMapView({ center, guName, onBack, onMarkerClick }: KakaoMapViewProps) {
+  const mapContainer = useRef(null);
   const mapInstance = useRef<any>(null);
+  
+  // [수정] 현재 열려있는 인포윈도우를 추적하기 위한 ref
+  // state로 관리하면 리렌더링 이슈가 생길 수 있어 ref가 더 적합할 때가 많으나,
+  // 여기서는 간단히 로직 내부 변수나 ref로 처리합니다.
+  const activeInfoWindow = useRef<any>(null); 
 
-  const activeInfoWindow = useRef<any>(null);
-
-  const [facilities, setFacilities] = useState<Facility[]>([]);
-  const [mapType, setMapType] = useState<'roadmap' | 'skyview'>('roadmap');
+  const [mapType, setMapType] = useState<"roadmap" | "skyview">("roadmap");
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [facilities, setFacilities] = useState<any[]>([]);
 
   // --------------------------
-  // (A) 백엔드 데이터 가져오기
+  // Kakao Map SDK 로드
   // --------------------------
-  useEffect(() => {
-    const fetchFacilities = async () => {
-      try {
-        // 🚀 [TODO] 백엔드 API 연결 시 주석 해제 및 URL 확인
-        /*
-        const response = await fetch('http://localhost:5001/api/places');
-        const data = await response.json();
-        setFacilities(data); 
-        */
-
-        console.log("데이터 수신 대기 중... (운영시간 포함)"); 
-
-      } catch (error) {
-        console.error("데이터 가져오기 실패:", error);
-      }
+  const loadKakaoMapScript = (callback: () => void) => {
+    if (typeof window === "undefined") return;
+    if (window.kakao && window.kakao.maps) {
+      callback();
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = `https://dapi.kakao.com/v2/maps/sdk.js?autoload=false&appkey=4e34ef0e449c2ec445ee2ed78657054e`;
+    script.onload = () => {
+      window.kakao.maps.load(callback);
     };
-
-    fetchFacilities();
-  }, []); 
-
+    document.head.appendChild(script);
+  };
 
   // --------------------------
-  // (B) 지도 그리기 & 마커 표시
+  // 지도 초기화 함수
   // --------------------------
-  useEffect(() => {
+  const initMap = () => {
     if (!mapContainer.current) return;
-    const { kakao } = window as any;
-
+    const { kakao } = window;
     const map = new kakao.maps.Map(mapContainer.current, {
       center: new kakao.maps.LatLng(center.lat, center.lng),
       level: 5,
     });
     mapInstance.current = map;
-
-    // 중심 좌표(고양이 핀)
-    const catMarkerImage = new kakao.maps.MarkerImage(
-      "/cat_pin.svg", 
-      new kakao.maps.Size(60, 80), 
-      { offset: new kakao.maps.Point(30, 80) }
-    );
-
-    const mainMarker = new kakao.maps.Marker({
+    
+    // 중심 좌표 마커 (구청 등)
+    const marker = new kakao.maps.Marker({
       position: new kakao.maps.LatLng(center.lat, center.lng),
-      image: catMarkerImage,
-      map: map
+      map,
     });
-
+    
+    // 구 이름 인포윈도우 (이건 항상 떠있어도 되는지, 아니면 이것도 닫혀야 하는지에 따라 다르지만 보통 유지)
+    // 만약 이것도 닫히길 원하면 activeInfoWindow에 할당하면 됩니다.
+    // 여기서는 구 이름은 계속 떠있도록 둡니다.
     new kakao.maps.InfoWindow({
-      content: `<div style="padding:10px; font-weight:bold;">${guName}</div>`
-    }).open(map, mainMarker);
-
-
-    // 3. 시설 마커 생성 반복문 🌟
-    facilities.forEach((place) => {
-      
-      // (1) 카테고리별 디자인
-      let badgeColor = '#6B7280';
-      let icon = '🐾';
-      let label = '기타';
-
-      const cat = place.category.toLowerCase();
-      if (cat.includes('hospital') || cat.includes('병원')) { 
-        badgeColor = '#EF4444'; icon = '🏥'; label = '병원';
-      } else if (cat.includes('pharmacy') || cat.includes('약국')) { 
-        badgeColor = '#3B82F6'; icon = '💊'; label = '약국';
-      } else if (cat.includes('beauty') || cat.includes('미용')) { 
-        badgeColor = '#F59E0B'; icon = '✂️'; label = '미용';
-      } else if (cat.includes('park') || cat.includes('waste') || cat.includes('공원')) { 
-        badgeColor = '#10B981'; icon = '🌳'; label = '편의';
-      } else if (cat.includes('cafe') || cat.includes('카페')) { 
-        badgeColor = '#8B5CF6'; icon = '☕'; label = '카페';
-      }
-
-      // (2) 마커 생성
-      const marker = new kakao.maps.Marker({
-        position: new kakao.maps.LatLng(place.lat, place.lng),
-        map: map,
-        title: place.name,
-        image: catMarkerImage 
-      });
-
-      // (3) 팝업(인포윈도우) HTML 디자인 🌟
-      const content = `
-        <div style="padding:12px; width:210px; font-family:'Pretendard', sans-serif; border-radius:8px; background:white;">
-          
-          <div style="margin-bottom:6px;">
-            <span style="background-color:${badgeColor}; color:white; padding:3px 6px; border-radius:4px; font-size:11px; font-weight:bold;">
-              ${icon} ${label}
-            </span>
-          </div>
-
-          <div style="font-weight:bold; font-size:15px; margin-bottom:4px; color:#1F2937; word-break:keep-all;">
-            ${place.name}
-          </div>
-
-          <div style="font-size:12px; color:#6B7280; margin-bottom:4px; line-height:1.4;">
-            ${place.address}
-          </div>
-
-          ${place.operatingHours ? `
-            <div style="font-size:12px; color:#4B5563; margin-top:6px; display:flex; align-items:center; gap:4px;">
-              🕒 <span style="font-weight:500;">${place.operatingHours}</span>
-            </div>` : ''
-          }
-
-          ${place.phone ? `
-            <div style="font-size:12px; color:#3B82F6; margin-top:4px; font-weight:500;">
-              📞 ${place.phone}
-            </div>` : ''
-          }
-          
-          ${place.url ? `
-            <div style="margin-top:8px; text-align:right;">
-              <a href="${place.url}" target="_blank" style="text-decoration:none; color:#8B5CF6; font-size:11px; font-weight:bold; border:1px solid #E5E7EB; padding:2px 6px; border-radius:4px;">
-                홈페이지 방문 >
-              </a>
-            </div>` : ''
-          }
-        </div>
-      `;
-
-      const infowindow = new kakao.maps.InfoWindow({
-        content: content,
-        removable: true
-      });
-
-      kakao.maps.event.addListener(marker, 'click', () => {
-        infowindow.open(map, marker);
-      });
-    });
-
-  }, [center, guName, facilities]);
-
-  // --------------------------
-  // 지도 컨트롤 (기존 코드 유지)
-  // --------------------------
-  const zoomIn = () => mapInstance.current?.setLevel(mapInstance.current.getLevel() - 1);
-  const zoomOut = () => mapInstance.current?.setLevel(mapInstance.current.getLevel() + 1);
-
-  const toggleMapType = (type: 'roadmap' | 'skyview') => {
-    const { kakao } = window as any;
-    setMapType(type);
-    mapInstance.current?.setMapTypeId(
-      type === 'skyview' ? kakao.maps.MapTypeId.HYBRID : kakao.maps.MapTypeId.ROADMAP
-    );
-  };
-
-  const goToMyLocation = () => {
-    if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition(pos => {
-      const { kakao } = window as any;
-      const latlng = new kakao.maps.LatLng(pos.coords.latitude, pos.coords.longitude);
-      mapInstance.current?.setCenter(latlng);
-      new kakao.maps.Marker({ position: latlng, map: mapInstance.current });
-    });
+      content: `<div style="padding:5px;">${guName}</div>`,
+    }).open(map, marker);
   };
 
   useEffect(() => {
-    const controls = document.querySelector('.map-controls') as HTMLElement;
-    if (!controls) return;
-    controls.style.opacity = isSettingsOpen ? '0' : '1';
-    controls.style.pointerEvents = isSettingsOpen ? 'none' : 'auto';
-  }, [isSettingsOpen]);
+    loadKakaoMapScript(() => {
+      initMap();
+    });
+  }, [center]);
 
+  // --------------------------
+  // 데이터 로드
+  // --------------------------
+  useEffect(() => {
+    if (!guName) return;
+    fetch(`http://localhost:5001/api/facilities?gu=${encodeURIComponent(guName)}`)
+      .then((res) => res.json())
+      .then((data) => {
+        setFacilities(data);
+      })
+      .catch((err) => console.error("시설 조회 실패:", err));
+  }, [guName]);
+
+  // --------------------------
+  // 시설 마커 표시 (여기가 수정됨)
+  // --------------------------
+  useEffect(() => {
+    if (!mapInstance.current) return;
+    if (facilities.length === 0) return;
+    const { kakao } = window;
+    const markers: any[] = [];
+    
+    facilities.forEach((f) => {
+      const markerPosition = new kakao.maps.LatLng(f.lat, f.lng);
+      const marker = new kakao.maps.Marker({
+        map: mapInstance.current,
+        position: markerPosition,
+        title: f.name,
+      });
+      
+      // 인포윈도우 생성 (열지는 않음)
+      const infowindow = new kakao.maps.InfoWindow({
+        content: `<div style="padding:5px; z-index:1; white-space:nowrap;">${f.name}</div>`,
+        removable: true, // 닫기 버튼 추가 (선택사항)
+      });
+      
+      // 마커 클릭 이벤트
+      kakao.maps.event.addListener(marker, "click", () => {
+        // [핵심 로직]
+        // 1. 기존에 열려있는 인포윈도우가 있다면 닫는다.
+        if (activeInfoWindow.current) {
+            activeInfoWindow.current.close();
+        }
+
+        // 2. 현재 클릭한 마커의 인포윈도우를 연다.
+        infowindow.open(mapInstance.current, marker);
+
+        // 3. 현재 열린 인포윈도우를 activeInfoWindow에 저장한다.
+        activeInfoWindow.current = infowindow;
+        
+        // 4. 부모에게 데이터 전달
+        if (onMarkerClick) {
+            onMarkerClick(f);
+        }
+      });
+      
+      markers.push(marker);
+    });
+    
+    return () => markers.forEach((m) => m.setMap(null));
+  }, [facilities, onMarkerClick]);
+
+  // --------------------------
+  // 지도 조작 함수들 (그대로 유지)
+  // --------------------------
+  const zoomIn = () => mapInstance.current?.setLevel(mapInstance.current.getLevel() - 1);
+  const zoomOut = () => mapInstance.current?.setLevel(mapInstance.current.getLevel() + 1);
+  const toggleMapType = (type: "roadmap" | "skyview") => {
+    const { kakao } = window;
+    setMapType(type);
+    mapInstance.current?.setMapTypeId(
+      type === "skyview" ? kakao.maps.MapTypeId.HYBRID : kakao.maps.MapTypeId.ROADMAP
+    );
+  };
+  const goToMyLocation = () => {
+    if (!navigator.geolocation) return;
+    const { kakao } = window;
+    navigator.geolocation.getCurrentPosition((pos) => {
+      const latlng = new kakao.maps.LatLng(pos.coords.latitude, pos.coords.longitude);
+      mapInstance.current?.setCenter(latlng);
+      new kakao.maps.Marker({ position: latlng, map: mapInstance.current });
+      mapInstance.current?.setLevel(4);
+    });
+  };
 
   return (
-    <>
-      <div className="w-full bg-white" style={{ height: 'calc(100vh - 4rem)' }}>
-        <div ref={mapContainer} className="w-full h-full" />
-      </div>
-      <SearchBar isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
-      <div className="fixed right-4 bottom-5 z-40 flex flex-col gap-2 map-controls">
-        <button onClick={() => setIsSettingsOpen(true)} className="w-12 h-12 bg-white rounded-lg shadow-lg border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition">
-          <Settings size={20} className="text-gray-800" />
-        </button>
-        <button onClick={() => setIsSearchOpen(true)} className="w-12 h-12 bg-white rounded-lg shadow-lg border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition">
-          <Search size={20} className="text-gray-800" />
-        </button>
-        <div className="bg-white rounded-lg overflow-hidden shadow-lg border border-gray-200">
-          <button onClick={() => toggleMapType('roadmap')} className={`w-12 h-12 flex items-center justify-center border-b transition ${mapType === 'roadmap' ? 'bg-purple-400 text-white' : 'text-gray-700 hover:bg-gray-100'}`}>
-            <Map size={20} />
-          </button>
-          <button onClick={() => toggleMapType('skyview')} className={`w-12 h-12 flex items-center justify-center transition ${mapType === 'skyview' ? 'bg-purple-400 text-white' : 'text-gray-700 hover:bg-gray-100'}`}>
-            <Satellite size={20} />
-          </button>
-        </div>
-        <div className="bg-white rounded-lg overflow-hidden shadow-lg border border-gray-200">
-          <button onClick={zoomIn} className="w-12 h-12 flex items-center justify-center border-b hover:bg-gray-100 transition">
-            <Plus size={20} className="text-gray-700" />
-          </button>
-          <button onClick={zoomOut} className="w-12 h-12 flex items-center justify-center hover:bg-gray-100 transition">
-            <Minus size={20} className="text-gray-700" />
-          </button>
-        </div>
-        <button onClick={goToMyLocation} className="w-12 h-12 bg-purple-400 rounded-lg shadow-lg border border-gray-200 flex items-center justify-center text-white hover:bg-purple-500 transition">
-          <Navigation size={20} />
-        </button>
-      </div>
+    <div className="relative w-full h-full">
+      <div ref={mapContainer} className="w-full h-full" />
+
+      <Chatbot />
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
-    </>
+      <SearchBar isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
+
+      <div className="absolute top-4 right-4 flex flex-col gap-2 z-10">
+        <button
+          onClick={() => setIsSettingsOpen(true)}
+          className="w-12 h-12 bg-white rounded-lg shadow-lg border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition-colors"
+        >
+          <Settings className="w-6 h-6 text-gray-700" />
+        </button>
+
+        <button
+          onClick={() => setIsSearchOpen(true)}
+          className="w-12 h-12 bg-white rounded-lg shadow-lg border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition-colors"
+        >
+          <Search className="w-6 h-6 text-gray-700" />
+        </button>
+
+        <div className="flex flex-col bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden">
+          <button
+            onClick={() => toggleMapType("roadmap")}
+            className={`w-12 h-12 flex items-center justify-center border-b transition-colors ${
+              mapType === "roadmap" ? "bg-blue-500 text-white" : "hover:bg-gray-50 text-gray-700"
+            }`}
+          >
+            <Map className="w-6 h-6" />
+          </button>
+          <button
+            onClick={() => toggleMapType("skyview")}
+            className={`w-12 h-12 flex items-center justify-center transition-colors ${
+              mapType === "skyview" ? "bg-blue-500 text-white" : "hover:bg-gray-50 text-gray-700"
+            }`}
+          >
+            <Satellite className="w-6 h-6" />
+          </button>
+        </div>
+
+        <div className="flex flex-col bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden mt-2">
+          <button
+            onClick={zoomIn}
+            className="w-12 h-12 flex items-center justify-center border-b hover:bg-gray-50 transition-colors"
+          >
+            <Plus className="w-6 h-6 text-gray-700" />
+          </button>
+          <button
+            onClick={zoomOut}
+            className="w-12 h-12 flex items-center justify-center hover:bg-gray-50 transition-colors"
+          >
+            <Minus className="w-6 h-6 text-gray-700" />
+          </button>
+        </div>
+
+        <button
+          onClick={goToMyLocation}
+          className="w-12 h-12 bg-white rounded-lg shadow-lg border border-gray-200 flex items-center justify-center mt-2 hover:bg-gray-50 transition-colors"
+        >
+          <Navigation className="w-6 h-6 text-blue-500" />
+        </button>
+      </div>
+    </div>
   );
 }

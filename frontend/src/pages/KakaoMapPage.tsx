@@ -4,8 +4,7 @@ import KakaoMapView from '../components/KakaoMapView';
 import Header from '../components/Header';
 import { X, Loader2 } from 'lucide-react';
 
-// 구 중심 좌표 정의 (HomePage와 동일)
-const guCenters = {
+const guCenters: { [key: string]: { lat: number; lng: number } } = {
   '강남구': { lat: 37.5172, lng: 127.0473 },
   '강동구': { lat: 37.5301, lng: 127.1238 },
   '강북구': { lat: 37.6396, lng: 127.0257 },
@@ -41,16 +40,125 @@ export default function KakaoMapPage() {
   const query = useQuery();
   const guName = query.get('gu') || '노원구';
   const center = guCenters[guName] || { lat: 37.5665, lng: 126.9780 };
+  
+  const [isPanelOpen, setIsPanelOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [detailData, setDetailData] = useState<any>(null);
 
-  // onBack 핸들러를 통한 뒤로 가기(홈으로)
   const handleBack = () => {
     window.location.href = '/';
   };
 
+  const handleMarkerClick = async (basicInfo: any) => {
+    setIsPanelOpen(true);
+    setLoading(true);
+    setDetailData(null); 
+
+    try {
+      // id가 없는 경우 (URI가 아닌 경우) 예외 처리
+      const facilityId = basicInfo.id || basicInfo.facility || basicInfo.uri;
+      
+      if (!facilityId) {
+          console.error("ID(URI) 정보가 없습니다:", basicInfo);
+          setDetailData(basicInfo); // 기본 정보만이라도 표시
+          setLoading(false);
+          return;
+      }
+
+      // API 호출
+      const response = await fetch(`http://localhost:5001/api/facility/detail?id=${encodeURIComponent(facilityId)}`);
+      
+      if (!response.ok) {
+        throw new Error('상세 정보 조회 실패');
+      }
+
+      const data = await response.json();
+      
+      // 기존 기본 정보 + 새로 받은 상세 정보 병합
+      setDetailData({ ...basicInfo, ...data });
+
+    } catch (error) {
+      console.error(error);
+      // 실패 시 기본 정보만 표시
+      setDetailData(basicInfo);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const closePanel = () => {
+    setIsPanelOpen(false);
+    setDetailData(null);
+  };
+
   return (
-    <div>
-      <Header />
-      <KakaoMapView center={center} guName={guName} onBack={handleBack} />
+    <div className="flex flex-col h-screen w-full relative overflow-hidden">
+      <Header title={`${guName} 동물 보호 센터`} onBack={handleBack} />
+      
+      <div className="flex-1 relative flex">
+        <div className="w-full h-full">
+            <KakaoMapView 
+                center={center} 
+                guName={guName} 
+                onBack={handleBack}
+                onMarkerClick={handleMarkerClick}
+            />
+        </div>
+
+        {isPanelOpen && (
+          <div className="absolute top-0 right-0 h-full w-96 bg-white shadow-2xl z-50 transform transition-transform duration-300 ease-in-out border-l border-gray-200 flex flex-col">
+            
+            <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
+              <h2 className="text-lg font-bold text-gray-800 truncate pr-2">
+                {detailData ? detailData.name : "시설 정보 불러오는 중..."}
+              </h2>
+              <button onClick={closePanel} className="p-1 rounded-full hover:bg-gray-200 transition-colors">
+                <X className="w-6 h-6 text-gray-500" />
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto flex-1">
+              {loading ? (
+                <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                  <Loader2 className="w-8 h-8 animate-spin mb-2" />
+                  <p className="text-sm">GraphDB에서 정보를 가져오는 중...</p>
+                </div>
+              ) : detailData ? (
+                <div className="space-y-6">
+                   <div>
+                    <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider block mb-1">주소</span>
+                    <p className="text-gray-700 text-sm leading-relaxed">{detailData.address || "정보 없음"}</p>
+                   </div>
+
+                   {detailData.tel && (
+                    <div>
+                      <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider block mb-1">전화번호</span>
+                      <p className="text-gray-700 text-sm font-medium">{detailData.tel}</p>
+                    </div>
+                   )}
+
+                  {/* 그 외 모든 동적 데이터 출력 */}
+                  {Object.entries(detailData).map(([key, value]) => {
+                    if (['name', 'address', 'tel', 'lat', 'lng', 'id', 'type', 'uri', 'facility'].includes(key)) return null;
+                    return (
+                      <div key={key}>
+                        <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider block mb-1">{key}</span>
+                        <p className="text-gray-600 text-sm bg-gray-50 p-3 rounded-lg border border-gray-100 break-words">
+                          {String(value)}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-center text-gray-500 mt-10">
+                  정보를 불러올 수 없습니다.
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
