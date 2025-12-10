@@ -22,6 +22,19 @@ interface KakaoMapViewProps {
   onMarkerClick?: (facility: any) => void;
 }
 
+// 🐶 카테고리별 캐릭터 핀 이미지 매핑
+export const CATEGORY_IMAGES: { [key: string]: string } = {
+  hospital: "/dog_pin.svg",
+  pharmacy: "/panda_pin.svg",
+  care:     "/frog_pin.svg",
+  shop:     "/rabbit_pin.svg",
+  cafe:     "/cheetah_pin.svg",
+  culture:  "/quokka_pin.svg",
+  funeral:  "/sheep_pin.svg",
+  poopbag:  "/duckraccoon_pin.svg",
+  default:  "/cat_pin.svg"
+};
+
 export default function KakaoMapView({ center, guName, onBack, onMarkerClick }: KakaoMapViewProps) {
   const mapContainer = useRef(null);
   const mapInstance = useRef(null);
@@ -31,32 +44,23 @@ export default function KakaoMapView({ center, guName, onBack, onMarkerClick }: 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
-  const [facilities, setFacilities] = useState<Facility[]>([]); // 원본 데이터
-  const [filteredFacilities, setFilteredFacilities] = useState<Facility[]>([]); // 필터링된 데이터
+  const [facilities, setFacilities] = useState<Facility[]>([]);
+  const [filteredFacilities, setFilteredFacilities] = useState<Facility[]>([]);
   
   const [filterCategories, setFilterCategories] = useState<{ [key: string]: boolean }>({
-    hospital: false, pharmacy: false, care: false, shop: false,
+    hospital: true,
+    pharmacy: false, care: false, shop: false,
     cafe: false, culture: false, funeral: false, poopbag: false
   });
 
-  const loadKakaoMapScript = (callback: () => void) => {
-    if (typeof window === "undefined") return;
-    if ((window as any).kakao && (window as any).kakao.maps) {
-      callback();
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.src = `https://dapi.kakao.com/v2/maps/sdk.js?autoload=false&appkey=4e34ef0e449c2ec445ee2ed78657054e`;
-    script.onload = () => {
-      (window as any).kakao.maps.load(callback);
-    };
-    document.head.appendChild(script);
-  };
+  // ❌ loadKakaoMapScript 삭제됨 (index.html에서 로드함)
 
   const initMap = () => {
     if (!mapContainer.current) return;
     const { kakao } = window as any;
+
+    // 안전 장치
+    if (!kakao || !kakao.maps) return;
 
     const map = new kakao.maps.Map(mapContainer.current, {
       center: new kakao.maps.LatLng(center.lat, center.lng),
@@ -64,6 +68,7 @@ export default function KakaoMapView({ center, guName, onBack, onMarkerClick }: 
     });
     mapInstance.current = map;
 
+    // 초기 센터 마커
     const catMarkerImage = new kakao.maps.MarkerImage(
       "/cat_pin.svg",
       new kakao.maps.Size(60, 80), 
@@ -77,10 +82,12 @@ export default function KakaoMapView({ center, guName, onBack, onMarkerClick }: 
     });
   };
 
+  // ✅ [수정] index.html의 스크립트 사용
   useEffect(() => {
-    loadKakaoMapScript(() => {
-      initMap();
-    });
+    const { kakao } = window as any;
+    if (kakao && kakao.maps) {
+        kakao.maps.load(() => initMap());
+    }
   }, [center]);
 
   // 데이터 로드
@@ -95,7 +102,7 @@ export default function KakaoMapView({ center, guName, onBack, onMarkerClick }: 
       .catch((err) => console.error("시설 조회 실패:", err));
   }, [guName]);
 
-  // [핵심] 클라이언트 필터링 로직
+  // 필터링 로직
   useEffect(() => {
     const activeKeys = Object.entries(filterCategories)
       .filter(([_, isActive]) => isActive)
@@ -107,14 +114,26 @@ export default function KakaoMapView({ center, guName, onBack, onMarkerClick }: 
     }
 
     const filtered = facilities.filter((f) => {
-      // [수정] RDF 카테고리가 없어도, 이름(f.name)에 키워드가 있으면 매칭되도록 함
-      // 예: 카테고리가 '기타'여도 이름이 '000 동물약국'이면 pharmacy로 매핑됨
       const mainCat = mapCategoryToMain(f.category, f.name); 
       return mainCat && activeKeys.includes(mainCat);
     });
 
     setFilteredFacilities(filtered);
   }, [facilities, filterCategories]);
+
+  // 헬퍼 함수: 카테고리에 맞는 마커 이미지 생성
+  const createMarkerImage = (categoryKey: string) => {
+    const { kakao } = window as any;
+    
+    // 이미 정의된 CATEGORY_IMAGES에서 키에 맞는 이미지를 가져옴 (없으면 default)
+    const imageSrc = CATEGORY_IMAGES[categoryKey] || CATEGORY_IMAGES['default'];
+
+    return new kakao.maps.MarkerImage(
+      imageSrc,
+      new kakao.maps.Size(35, 55), 
+      { offset: new kakao.maps.Point(17, 55) } 
+    );
+  };
 
   // 마커 표시
   useEffect(() => {
@@ -123,20 +142,19 @@ export default function KakaoMapView({ center, guName, onBack, onMarkerClick }: 
     const { kakao } = window as any;
     const markers: any[] = [];
 
-    const catMarkerImage = new kakao.maps.MarkerImage(
-      "/cat_pin.svg",
-      new kakao.maps.Size(30, 50), 
-      { offset: new kakao.maps.Point(30, 50) }
-    );
-
     filteredFacilities.forEach((f) => {
       const markerPosition = new kakao.maps.LatLng(f.lat, f.lng);
       
+      // ✅ [수정] createMarkerImage 함수 호출로 변경
+      const realCategory = mapCategoryToMain(f.category, f.name);
+
+      const image = createMarkerImage(realCategory);
+
       const marker = new kakao.maps.Marker({
         map: mapInstance.current,
         position: markerPosition,
         title: f.name,
-        image: catMarkerImage,
+        image: image, // 이제 올바른 이미지가 들어갑니다
       });
 
       const infowindow = new kakao.maps.InfoWindow({
@@ -162,6 +180,55 @@ export default function KakaoMapView({ center, guName, onBack, onMarkerClick }: 
     return () => markers.forEach((m) => m.setMap(null));
   }, [filteredFacilities, onMarkerClick]);
 
+  // 지도 이동 및 핀 설정 함수
+  const moveAndPin = (facility: Facility) => {
+    setFilteredFacilities([facility]);
+
+    if (mapInstance.current) {
+      const { kakao } = window as any;
+      const moveLatLon = new kakao.maps.LatLng(facility.lat, facility.lng);
+      mapInstance.current.setCenter(moveLatLon);
+      mapInstance.current.setLevel(3);
+    }
+    setIsSearchOpen(false);
+  };
+
+  // 검색 결과 처리
+  const handleSearchResult = (result: any) => {
+    const foundFacility = facilities.find(f => f.name === result.label);
+    
+    if (foundFacility) {
+      moveAndPin(foundFacility);
+    } else if (result.address) {
+      const { kakao } = window as any;
+      
+      if (!kakao.maps.services) {
+        alert("지도 서비스를 불러오는 중입니다. 잠시 후 다시 시도해주세요.");
+        return;
+      }
+
+      const geocoder = new kakao.maps.services.Geocoder();
+
+      geocoder.addressSearch(result.address, (data: any, status: any) => {
+        if (status === kakao.maps.services.Status.OK) {
+          const newFacility: Facility = {
+            id: result.uri || Date.now(),
+            name: result.label,
+            category: result.type || 'search_result',
+            lat: parseFloat(data[0].y),
+            lng: parseFloat(data[0].x),
+            address: result.address
+          };
+          moveAndPin(newFacility);
+        } else {
+          alert('주소로 위치를 찾을 수 없습니다.');
+        }
+      });
+    } else {
+      alert('위치 정보가 부족하여 이동할 수 없습니다.');
+    }
+  };
+
   const zoomIn = () => mapInstance.current?.setLevel(mapInstance.current.getLevel() - 1);
   const zoomOut = () => mapInstance.current?.setLevel(mapInstance.current.getLevel() + 1);
 
@@ -183,7 +250,7 @@ export default function KakaoMapView({ center, guName, onBack, onMarkerClick }: 
       const catMarkerImage = new kakao.maps.MarkerImage(
         "/cat_pin.svg",
         new kakao.maps.Size(30, 50),
-        { offset: new kakao.maps.Point(30, 50) }
+        { offset: new kakao.maps.Point(15, 50) }
       );
 
       new kakao.maps.Marker({
@@ -220,63 +287,42 @@ export default function KakaoMapView({ center, guName, onBack, onMarkerClick }: 
         onApply={handleSettingsApply}
       />
 
-      <SearchBar isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
+      <SearchBar 
+        isOpen={isSearchOpen} 
+        onClose={() => setIsSearchOpen(false)} 
+        onResultSelect={handleSearchResult} 
+      />
 
       <div ref={mapContainer} className="w-full h-full"></div>
 
       <div className="map-controls absolute bottom-4 right-4 flex flex-col gap-3 z-10 transition-opacity duration-300">
-        <button
-          onClick={() => setIsSettingsOpen(true)}
-          className="w-12 h-12 bg-white rounded-lg shadow-lg border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition"
-        >
+        <button onClick={() => setIsSettingsOpen(true)} className="w-12 h-12 bg-white rounded-lg shadow-lg border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition">
           <Settings className="w-6 h-6 text-gray-700" />
         </button>
 
-        <button
-          onClick={() => setIsSearchOpen(true)}
-          className="w-12 h-12 bg-white rounded-lg shadow-lg border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition"
-        >
+        <button onClick={() => setIsSearchOpen(true)} className="w-12 h-12 bg-white rounded-lg shadow-lg border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition">
           <Search className="w-6 h-6 text-gray-700" />
         </button>
 
         <div className="bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden">
-          <button
-            onClick={() => toggleMapType("roadmap")}
-            className={`w-12 h-12 flex items-center justify-center border-b transition ${
-              mapType === "roadmap" ? "bg-purple-400 text-white" : "text-gray-700 hover:bg-gray-100"
-            }`}
-          >
+          <button onClick={() => toggleMapType("roadmap")} className={`w-12 h-12 flex items-center justify-center border-b transition ${mapType === "roadmap" ? "bg-purple-400 text-white" : "text-gray-700 hover:bg-gray-100"}`}>
             <Map className="w-6 h-6" />
           </button>
-          <button
-            onClick={() => toggleMapType("skyview")}
-            className={`w-12 h-12 flex items-center justify-center transition ${
-              mapType === "skyview" ? "bg-purple-400 text-white" : "text-gray-700 hover:bg-gray-100"
-            }`}
-          >
+          <button onClick={() => toggleMapType("skyview")} className={`w-12 h-12 flex items-center justify-center transition ${mapType === "skyview" ? "bg-purple-400 text-white" : "text-gray-700 hover:bg-gray-100"}`}>
             <Satellite className="w-6 h-6" />
           </button>
         </div>
 
         <div className="bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden">
-          <button
-            onClick={zoomIn}
-            className="w-12 h-12 flex items-center justify-center border-b hover:bg-gray-100 transition"
-          >
+          <button onClick={zoomIn} className="w-12 h-12 flex items-center justify-center border-b hover:bg-gray-100 transition">
             <Plus className="w-6 h-6 text-gray-700" />
           </button>
-          <button
-            onClick={zoomOut}
-            className="w-12 h-12 flex items-center justify-center hover:bg-gray-100 transition"
-          >
+          <button onClick={zoomOut} className="w-12 h-12 flex items-center justify-center hover:bg-gray-100 transition">
             <Minus className="w-6 h-6 text-gray-700" />
           </button>
         </div>
 
-        <button
-          onClick={goToMyLocation}
-          className="w-12 h-12 bg-white rounded-lg shadow-lg border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition"
-        >
+        <button onClick={goToMyLocation} className="w-12 h-12 bg-white rounded-lg shadow-lg border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition">
           <Navigation className="w-6 h-6 text-gray-700" />
         </button>
       </div>

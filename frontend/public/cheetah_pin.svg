@@ -1,0 +1,112 @@
+<svg width="52" height="70" viewBox="0 0 52 70" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Pin Shape -->
+  <path
+    d="M26 0C12 0 1 11 1 25C1 43 26 70 26 70C26 70 51 43 51 25C51 11 40 0 26 0Z"
+    fill="#FFC94A"
+  />
+
+  <!-- Cheetah Head Base -->
+  <circle
+    cx="26"
+    cy="25"
+    r="16"
+    fill="#FFD982"
+    stroke="#333"
+    stroke-width="2"
+  />
+
+  <!-- Cheeks (살짝 동그랗게) -->
+  <ellipse cx="21" cy="27.5" rx="4.8" ry="4.6" fill="#FFE6B5"/>
+  <ellipse cx="31" cy="27.5" rx="4.8" ry="4.6" fill="#FFE6B5"/>
+
+  <!-- Ears -->
+  <path
+    d="M16 16 L11.5 11 L15.5 9.5 C17.5 9 19 9.5 20 11.5 L21 14"
+    fill="#FFD982"
+    stroke="#333"
+    stroke-width="1.5"
+    stroke-linejoin="round"
+  />
+  <path
+    d="M36 16 L40.5 11 L36.5 9.5 C34.5 9 33 9.5 32 11.5 L31 14"
+    fill="#FFD982"
+    stroke="#333"
+    stroke-width="1.5"
+    stroke-linejoin="round"
+  />
+  <!-- Inner ear pink -->
+  <path
+    d="M15.5 14.5 L13.3 11.8 L16 10.9 C17 10.6 17.8 10.9 18.3 11.9 L19 13.4"
+    fill="#F9C2C2"
+  />
+  <path
+    d="M36.5 14.5 L38.7 11.8 L36 10.9 C35 10.6 34.2 10.9 33.7 11.9 L33 13.4"
+    fill="#F9C2C2"
+  />
+
+  <!-- Cheetah Spots -->
+  <!-- Forehead spots -->
+  <circle cx="22" cy="18" r="1.3" fill="#68462B"/>
+  <circle cx="26" cy="17" r="1.3" fill="#68462B"/>
+  <circle cx="30" cy="18" r="1.3" fill="#68462B"/>
+  <!-- Side spots -->
+  <circle cx="18" cy="22" r="1.1" fill="#68462B"/>
+  <circle cx="34" cy="22" r="1.1" fill="#68462B"/>
+
+  <!-- Eyes -->
+  <circle cx="21" cy="24" r="2.3" fill="#333"/>
+  <circle cx="31" cy="24" r="2.3" fill="#333"/>
+
+  <!-- Eye highlight -->
+  <circle cx="20.4" cy="23.5" r="0.7" fill="#fff"/>
+  <circle cx="30.4" cy="23.5" r="0.7" fill="#fff"/>
+
+  <!-- Tear marks (치타 특유의 검은 라인) -->
+  <path
+    d="M22 25.8 C21.3 27.5 20.8 29.3 20.7 31"
+    stroke="#2B2622"
+    stroke-width="1.2"
+    stroke-linecap="round"
+  />
+  <path
+    d="M30 25.8 C30.7 27.5 31.2 29.3 31.3 31"
+    stroke="#2B2622"
+    stroke-width="1.2"
+    stroke-linecap="round"
+  />
+
+  <!-- Nose -->
+  <path
+    d="M24.3 27.8 C24.8 26.9 25.4 26.5 26 26.5C26.6 26.5 27.2 26.9 27.7 27.8
+       C27.3 28.4 26.7 28.8 26 28.8C25.3 28.8 24.7 28.4 24.3 27.8Z"
+    fill="#F2994A"
+    stroke="#333"
+    stroke-width="1"
+  />
+
+  <!-- Mouth -->
+  <path
+    d="M26 28.8 V30.3"
+    stroke="#333"
+    stroke-width="1.3"
+    stroke-linecap="round"
+  />
+  <path
+    d="M26 30.3 Q24.7 31.3 23.4 30.4"
+    stroke="#333"
+    stroke-width="1.3"
+    stroke-linecap="round"
+    fill="none"
+  />
+  <path
+    d="M26 30.3 Q27.3 31.3 28.6 30.4"
+    stroke="#333"
+    stroke-width="1.3"
+    stroke-linecap="round"
+    fill="none"
+  />
+
+  <!-- Blush -->
+  <ellipse cx="19.3" cy="28.4" rx="2.1" ry="1.4" fill="#F9B1B1" opacity="0.8"/>
+  <ellipse cx="32.7" cy="28.4" rx="2.1" ry="1.4" fill="#F9B1B1" opacity="0.8"/>
+</svg>

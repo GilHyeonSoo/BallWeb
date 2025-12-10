@@ -7,6 +7,9 @@ interface SearchResult {
   label: string;
   type?: string;
   description?: string;
+  category?: string; // 기존 코드에 있어서 유지
+  lat?: number;
+  lng?: number;
 }
 
 interface SearchBarProps {
@@ -76,8 +79,8 @@ export default function SearchBar({ isOpen, onClose, onResultSelect }: SearchBar
   };
 
   const handleResultClick = (result: SearchResult) => {
-    console.log('선택된 결과:', result);
-    onResultSelect?.(result);
+    console.log('선택된 결과:', result); // 이 로그가 찍히는지 개발자 도구(F12) 콘솔에서 확인 필요
+    onResultSelect?.(result); // 👈 여기서 KakaoMapView로 데이터를 넘겨줍니다.
     handleClose();
   };
 
@@ -95,6 +98,8 @@ export default function SearchBar({ isOpen, onClose, onResultSelect }: SearchBar
   };
 
   if (!isOpen) return null;
+
+  
 
   return (
     <>

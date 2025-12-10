@@ -33,6 +33,69 @@ CORS(app, resources={
 log = logging.getLogger('werkzeug')
 log.setLevel(logging.ERROR)
 
+@app.route('/api/facilities', methods=['GET'])
+def get_facilities_by_gu():
+    gu_name = request.args.get('gu')
+    if not gu_name:
+        return jsonify({"error": "No gu provided"}), 400
+
+    print(f"[DEBUG] 시설 목록 조회 요청: {gu_name}")
+
+    try:
+        local_sparql = SPARQLWrapper(GRAPHDB_URL)
+        local_sparql.setReturnFormat(JSON)
+
+        query = f"""
+        SELECT ?s ?name ?lat ?lng ?category ?address
+        WHERE {{
+            ?s ?pName ?name .
+            FILTER(STRENDS(STR(?pName), "name"))
+
+            ?s ?pLat ?lat .
+            FILTER(STRENDS(STR(?pLat), "lat") || STRENDS(STR(?pLat), "latitude"))
+
+            ?s ?pLng ?lng .
+            FILTER(STRENDS(STR(?pLng), "lng") || STRENDS(STR(?pLng), "longitude"))
+            
+            ?s ?pAddress ?address .
+            FILTER(STRENDS(STR(?pAddress), "address") || STRENDS(STR(?pAddress), "streetAddress"))
+            FILTER(CONTAINS(?address, "{gu_name}"))
+
+            OPTIONAL {{
+                ?s ?pCat ?category .
+                FILTER(STRENDS(STR(?pCat), "category") || STRENDS(STR(?pCat), "type"))
+            }}
+        }}
+        """
+
+        local_sparql.setQuery(query)
+        results = local_sparql.query().convert()
+
+        facilities = []
+        for r in results["results"]["bindings"]:
+            # [수정] 카테고리 값이 URI일 경우 뒷부분만 추출 (예: http://.../동물병원 -> 동물병원)
+            raw_cat = r.get("category", {}).get("value", "기타")
+            category_label = raw_cat
+            if "http" in raw_cat:
+                category_label = raw_cat.split('/')[-1].split('#')[-1]
+            
+            facilities.append({
+                "id": r["s"]["value"],
+                "name": r["name"]["value"],
+                "lat": float(r["lat"]["value"]),
+                "lng": float(r["lng"]["value"]),
+                "category": category_label, # 정제된 카테고리 사용
+                "address": r["address"]["value"]
+            })
+
+        print(f"[DEBUG] {len(facilities)}개 시설 발견 ({gu_name})")
+        return jsonify(facilities), 200
+
+    except Exception as e:
+        print(f"[ERROR] 시설 목록 조회 실패: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route('/api/facility/detail', methods=['GET'])
 def get_facility_detail():
     facility_id = request.args.get('id')
@@ -260,7 +323,9 @@ def chat():
         2. 너의 환각 증세를 0%로 만들어야해 절대 너는 [수의학 데이터베이스 정보] 외 다른 곳에서 정보를 가져오면 안돼.
         3. 만약 [수의학 데이터베이스 정보]에서 정보가 없으면 임의로 답변하지말고 솔직하게 데이터가 없다고 답변해.
         4. 친근한 말투(해요체)와 이모지를 사용해.
-        5. 의학적 진단은 피하고, 병원 방문을 권유해.
+        5. 대답은 6줄 이내로 핵심만 요약해서 적어줘.
+        6. 의학적 진단은 피하고, 병원 방문을 권유해.
+        7. 마지막에 너가 [수의학 데이터베이스 정보]에서 어떤 데이터 베이스를 참조해왔는지 꼭 말해줘
         """
         
         context_section = ""
@@ -419,15 +484,15 @@ def search_graphdb():
         "마포구": "http://www.wikidata.org/entity/Q50388",
         "양천구": "http://www.wikidata.org/entity/Q50420",
         "강남구": "http://www.wikidata.org/entity/Q20398",
-        "강남": "http://www.wikidata.org/entity/Q20398",  # 짧은 버전 추가
+        "강남": "http://www.wikidata.org/entity/Q20398", 
         "성북구": "http://www.wikidata.org/entity/Q50412",
         "강북구": "http://www.wikidata.org/entity/Q50349",
         "성동구": "http://www.wikidata.org/entity/Q50411",
         "은평구": "http://www.wikidata.org/entity/Q50432",
         "서초구": "http://www.wikidata.org/entity/Q20395",
-        "서초": "http://www.wikidata.org/entity/Q20395",  # 짧은 버전 추가
+        "서초": "http://www.wikidata.org/entity/Q20395", 
         "송파구": "http://www.wikidata.org/entity/Q50415",
-        "송파": "http://www.wikidata.org/entity/Q50415",  # 짧은 버전 추가
+        "송파": "http://www.wikidata.org/entity/Q50415", 
         "중구": "http://www.wikidata.org/entity/Q50441",
         "노원구": "http://www.wikidata.org/entity/Q50368",
         "도봉구": "http://www.wikidata.org/entity/Q50374",
@@ -440,214 +505,51 @@ def search_graphdb():
         "동대문구": "http://www.wikidata.org/entity/Q50382",
     }
     
-    # 카테고리 키워드 → koah:category URI 매핑
-    # 카테고리 키워드 → koah:category URI 매핑 (모든 경우의 수)
-    
+    # 카테고리 맵핑 (기존과 동일)
     category_map = {
-    # 공원 (DogPark)
-    "공원": "koah:DogPark",
-    "애견공원": "koah:DogPark",
-    "반려견공원": "koah:DogPark",
-    "반려동물공원": "koah:DogPark",
-    "도그파크": "koah:DogPark",
-    "강아지공원": "koah:DogPark",
-    "펫파크": "koah:DogPark",
-    
-    # 배변봉투 (DogWasteBagDispenser)
-    "배변봉투": "koah:DogWasteBagDispenser",
-    "배변봉지": "koah:DogWasteBagDispenser",
-    "똥봉투": "koah:DogWasteBagDispenser",
-    "똥봉지": "koah:DogWasteBagDispenser",
-    "배설물봉투": "koah:DogWasteBagDispenser",
-    "애견배변봉투": "koah:DogWasteBagDispenser",
-    "반려견배변봉투": "koah:DogWasteBagDispenser",
-    
-    # 미술관 (ArtMuseum)
-    "미술관": "koah:ArtMuseum",
-    "아트뮤지엄": "koah:ArtMuseum",
-    "예술관": "koah:ArtMuseum",
-    "갤러리": "koah:ArtMuseum",
-    "전시관": "koah:ArtMuseum",
-    
-    # 미용 (BeautySalon)
-    "미용": "koah:BeautySalon",
-    "애견미용": "koah:BeautySalon",
-    "반려견미용": "koah:BeautySalon",
-    "반려동물미용": "koah:BeautySalon",
-    "펫미용": "koah:BeautySalon",
-    "강아지미용": "koah:BeautySalon",
-    "애견미용실": "koah:BeautySalon",
-    "펫살롱": "koah:BeautySalon",
-    "그루밍": "koah:BeautySalon",
-    "펫그루밍": "koah:BeautySalon",
-    "애견샵": "koah:BeautySalon",
-    
-    # 카페 (Cafe)
-    "카페": "koah:Cafe",
-    "애견카페": "koah:Cafe",
-    "반려견카페": "koah:Cafe",
-    "반려동물카페": "koah:Cafe",
-    "펫카페": "koah:Cafe",
-    "강아지카페": "koah:Cafe",
-    "도그카페": "koah:Cafe",
-    "커피숍": "koah:Cafe",
-    
-    # 문화센터 (CulturalCenter)
-    "문화센터": "koah:CulturalCenter",
-    "문화관": "koah:CulturalCenter",
-    "컬처센터": "koah:CulturalCenter",
-    "커뮤니티센터": "koah:CulturalCenter",
-    "주민센터": "koah:CulturalCenter",
-    
-    # 장례식장 (FuneralServicesIndustry)
-    "장례식장": "koah:FuneralServicesIndustry",
-    "장례장": "koah:FuneralServicesIndustry",
-    "장례시설": "koah:FuneralServicesIndustry",
-    "펫장례": "koah:FuneralServicesIndustry",
-    "반려동물장례": "koah:FuneralServicesIndustry",
-    "애견장례": "koah:FuneralServicesIndustry",
-    "반려동물장례식장": "koah:FuneralServicesIndustry",
-    "펫장례식장": "koah:FuneralServicesIndustry",
-    "추모": "koah:FuneralServicesIndustry",
-    "화장": "koah:FuneralServicesIndustry",
-    
-    # 호텔 (Hotel)
-    "호텔": "koah:Hotel",
-    "펫호텔": "koah:Hotel",
-    "애견호텔": "koah:Hotel",
-    "반려견호텔": "koah:Hotel",
-    "반려동물호텔": "koah:Hotel",
-    "강아지호텔": "koah:Hotel",
-    "도그호텔": "koah:Hotel",
-    "펫리조트": "koah:Hotel",
-    "애견리조트": "koah:Hotel",
-    "위탁": "koah:Hotel",
-    "애견위탁": "koah:Hotel",
-    "반려견위탁": "koah:Hotel",
-    
-    # 식당 (KoreanRestaurant)
-    "식당": "koah:KoreanRestaurant",
-    "음식점": "koah:KoreanRestaurant",
-    "맛집": "koah:KoreanRestaurant",
-    "한식당": "koah:KoreanRestaurant",
-    "레스토랑": "koah:KoreanRestaurant",
-    "애견식당": "koah:KoreanRestaurant",
-    "반려견식당": "koah:KoreanRestaurant",
-    "펫식당": "koah:KoreanRestaurant",
-    "강아지식당": "koah:KoreanRestaurant",
-    "반려동물식당": "koah:KoreanRestaurant",
-    
-    # 박물관 (MuseumBuilding)
-    "박물관": "koah:MuseumBuilding",
-    "뮤지엄": "koah:MuseumBuilding",
-    "전시관": "koah:MuseumBuilding",
-    "기념관": "koah:MuseumBuilding",
-    
-    # 펜션 (Pension)
-    "펜션": "koah:Pension",
-    "펫펜션": "koah:Pension",
-    "애견펜션": "koah:Pension",
-    "반려견펜션": "koah:Pension",
-    "반려동물펜션": "koah:Pension",
-    "강아지펜션": "koah:Pension",
-    "별장": "koah:Pension",
-    "애견동반펜션": "koah:Pension",
-    "반려견동반펜션": "koah:Pension",
-    
-    # 약국 (Pharmacy)
-    "약국": "koah:Pharmacy",
-    "동물약국": "koah:Pharmacy",
-    "애견약국": "koah:Pharmacy",
-    "반려동물약국": "koah:Pharmacy",
-    "펫약국": "koah:Pharmacy",
-    "수의약국": "koah:Pharmacy",
-    
-    # 놀이터 (Playground)
-    "놀이터": "koah:Playground",
-    "애견놀이터": "koah:Playground",
-    "반려견놀이터": "koah:Playground",
-    "반려동물놀이터": "koah:Playground",
-    "강아지놀이터": "koah:Playground",
-    "도그런": "koah:Playground",
-    "운동장": "koah:Playground",
-    "애견운동장": "koah:Playground",
-    "반려견운동장": "koah:Playground",
-    
-    # 용품샵 (Shop)
-    "용품샵": "koah:Shop",
-    "샵": "koah:Shop",
-    "용품점": "koah:Shop",
-    "애견용품": "koah:Shop",
-    "반려동물용품": "koah:Shop",
-    "펫샵": "koah:Shop",
-    "펫용품": "koah:Shop",
-    "강아지용품": "koah:Shop",
-    "반려견용품": "koah:Shop",
-    "애완용품": "koah:Shop",
-    "동물용품": "koah:Shop",
-    "사료": "koah:Shop",
-    "간식": "koah:Shop",
-    
-    # 여행지 (Travel)
-    "여행지": "koah:Travel",
-    "관광지": "koah:Travel",
-    "여행": "koah:Travel",
-    "관광": "koah:Travel",
-    "펫여행": "koah:Travel",
-    "애견여행": "koah:Travel",
-    "반려견여행": "koah:Travel",
-    "반려동물여행": "koah:Travel",
-    "애견동반여행": "koah:Travel",
-    "반려견동반여행": "koah:Travel",
-    "펫투어": "koah:Travel",
-    "애견관광": "koah:Travel",
-    
-    # 배변쓰레기함 (WasteContainer)
-    "배변쓰레기함": "koah:WasteContainer",
-    "쓰레기통": "koah:WasteContainer",
-    "휴지통": "koah:WasteContainer",
-    "배변쓰레기통": "koah:WasteContainer",
-    "똥쓰레기통": "koah:WasteContainer",
-    "똥휴지통": "koah:WasteContainer",
-    "애견쓰레기통": "koah:WasteContainer",
-    "반려견쓰레기통": "koah:WasteContainer",
-    "배변통": "koah:WasteContainer",
+        "공원": "koah:DogPark", "애견공원": "koah:DogPark", "반려견공원": "koah:DogPark", "반려동물공원": "koah:DogPark", "도그파크": "koah:DogPark", "강아지공원": "koah:DogPark", "펫파크": "koah:DogPark",
+        "배변봉투": "koah:DogWasteBagDispenser", "배변봉지": "koah:DogWasteBagDispenser", "똥봉투": "koah:DogWasteBagDispenser", "똥봉지": "koah:DogWasteBagDispenser", "배설물봉투": "koah:DogWasteBagDispenser", "애견배변봉투": "koah:DogWasteBagDispenser", "반려견배변봉투": "koah:DogWasteBagDispenser",
+        "미술관": "koah:ArtMuseum", "아트뮤지엄": "koah:ArtMuseum", "예술관": "koah:ArtMuseum", "갤러리": "koah:ArtMuseum", "전시관": "koah:ArtMuseum",
+        "미용": "koah:BeautySalon", "애견미용": "koah:BeautySalon", "반려견미용": "koah:BeautySalon", "반려동물미용": "koah:BeautySalon", "펫미용": "koah:BeautySalon", "강아지미용": "koah:BeautySalon", "애견미용실": "koah:BeautySalon", "펫살롱": "koah:BeautySalon", "그루밍": "koah:BeautySalon", "펫그루밍": "koah:BeautySalon", "애견샵": "koah:BeautySalon",
+        "카페": "koah:Cafe", "애견카페": "koah:Cafe", "반려견카페": "koah:Cafe", "반려동물카페": "koah:Cafe", "펫카페": "koah:Cafe", "강아지카페": "koah:Cafe", "도그카페": "koah:Cafe", "커피숍": "koah:Cafe",
+        "문화센터": "koah:CulturalCenter", "문화관": "koah:CulturalCenter", "컬처센터": "koah:CulturalCenter", "커뮤니티센터": "koah:CulturalCenter", "주민센터": "koah:CulturalCenter",
+        "장례식장": "koah:FuneralServicesIndustry", "장례장": "koah:FuneralServicesIndustry", "장례시설": "koah:FuneralServicesIndustry", "펫장례": "koah:FuneralServicesIndustry", "반려동물장례": "koah:FuneralServicesIndustry", "애견장례": "koah:FuneralServicesIndustry", "반려동물장례식장": "koah:FuneralServicesIndustry", "펫장례식장": "koah:FuneralServicesIndustry", "추모": "koah:FuneralServicesIndustry", "화장": "koah:FuneralServicesIndustry",
+        "호텔": "koah:Hotel", "펫호텔": "koah:Hotel", "애견호텔": "koah:Hotel", "반려견호텔": "koah:Hotel", "반려동물호텔": "koah:Hotel", "강아지호텔": "koah:Hotel", "도그호텔": "koah:Hotel", "펫리조트": "koah:Hotel", "애견리조트": "koah:Hotel", "위탁": "koah:Hotel", "애견위탁": "koah:Hotel", "반려견위탁": "koah:Hotel",
+        "식당": "koah:KoreanRestaurant", "음식점": "koah:KoreanRestaurant", "맛집": "koah:KoreanRestaurant", "한식당": "koah:KoreanRestaurant", "레스토랑": "koah:KoreanRestaurant", "애견식당": "koah:KoreanRestaurant", "반려견식당": "koah:KoreanRestaurant", "펫식당": "koah:KoreanRestaurant", "강아지식당": "koah:KoreanRestaurant", "반려동물식당": "koah:KoreanRestaurant",
+        "박물관": "koah:MuseumBuilding", "뮤지엄": "koah:MuseumBuilding", "전시관": "koah:MuseumBuilding", "기념관": "koah:MuseumBuilding",
+        "펜션": "koah:Pension", "펫펜션": "koah:Pension", "애견펜션": "koah:Pension", "반려견펜션": "koah:Pension", "반려동물펜션": "koah:Pension", "강아지펜션": "koah:Pension", "별장": "koah:Pension", "애견동반펜션": "koah:Pension", "반려견동반펜션": "koah:Pension",
+        "약국": "koah:Pharmacy", "동물약국": "koah:Pharmacy", "애견약국": "koah:Pharmacy", "반려동물약국": "koah:Pharmacy", "펫약국": "koah:Pharmacy", "수의약국": "koah:Pharmacy",
+        "놀이터": "koah:Playground", "애견놀이터": "koah:Playground", "반려견놀이터": "koah:Playground", "반려동물놀이터": "koah:Playground", "강아지놀이터": "koah:Playground", "도그런": "koah:Playground", "운동장": "koah:Playground", "애견운동장": "koah:Playground", "반려견운동장": "koah:Playground",
+        "용품샵": "koah:Shop", "샵": "koah:Shop", "용품점": "koah:Shop", "애견용품": "koah:Shop", "반려동물용품": "koah:Shop", "펫샵": "koah:Shop", "펫용품": "koah:Shop", "강아지용품": "koah:Shop", "반려견용품": "koah:Shop", "애완용품": "koah:Shop", "동물용품": "koah:Shop", "사료": "koah:Shop", "간식": "koah:Shop",
+        "여행지": "koah:Travel", "관광지": "koah:Travel", "여행": "koah:Travel", "관광": "koah:Travel", "펫여행": "koah:Travel", "애견여행": "koah:Travel", "반려견여행": "koah:Travel", "반려동물여행": "koah:Travel", "애견동반여행": "koah:Travel", "반려견동반여행": "koah:Travel", "펫투어": "koah:Travel", "애견관광": "koah:Travel",
+        "배변쓰레기함": "koah:WasteContainer", "쓰레기통": "koah:WasteContainer", "휴지통": "koah:WasteContainer", "배변쓰레기통": "koah:WasteContainer", "똥쓰레기통": "koah:WasteContainer", "똥휴지통": "koah:WasteContainer", "애견쓰레기통": "koah:WasteContainer", "반려견쓰레기통": "koah:WasteContainer", "배변통": "koah:WasteContainer",
     }
-
-
     
-    # ============================================================
-    # [핵심] 키워드에서 구 이름과 카테고리를 모두 추출
-    # ============================================================
+    # 키워드 매칭 로직
     matched_gu = None
     matched_gu_uri = None
     matched_category = None
     matched_category_uri = None
     
-    # 구 이름 찾기
     for gu_name, gu_uri in gu_map.items():
         if gu_name in keyword:
             matched_gu = gu_name
             matched_gu_uri = gu_uri
             break
-    
-    # 카테고리 찾기
+            
     for cat_keyword, cat_uri in category_map.items():
         if cat_keyword in keyword:
             matched_category = cat_keyword
             matched_category_uri = cat_uri
             break
-    
+            
     # ============================================================
-    # SPARQL 쿼리 구성 (복합 조건)
+    # SPARQL 쿼리 구성
     # ============================================================
     
-    # [케이스 1] 구 + 카테고리 둘 다 있음 (복합 조건!)
+    # [케이스 1] 구 + 카테고리 둘 다 있음 (복합 조건)
     if matched_gu_uri and matched_category_uri:
-        print(f"   🔗🔗 [복합 링크드 데이터 검색]")
-        print(f"      📍 위치: '{matched_gu}' → {matched_gu_uri}")
-        print(f"      🏷️  카테고리: '{matched_category}' → {matched_category_uri}")
-        print(f"      ✨ 두 조건을 동시에 만족하는 시설만 검색합니다!")
+        print(f"   🔗🔗 [복합 링크드 데이터 검색] {matched_gu} + {matched_category}")
         
         query = f"""
         PREFIX koah: <https://knowledgemap.kr/koah/def/>
@@ -657,12 +559,11 @@ def search_graphdb():
         
         SELECT DISTINCT ?subject ?label ?type ?address ?tel ?description ?category
         WHERE {{
-            # 복합 조건: 구(Gu) AND 카테고리(category) 동시 만족
             ?subject a koah:AnimalFacility ;
                      rdfs:label ?label ;
                      koad:Gu <{matched_gu_uri}> ;
-                     koah:category {matched_category_uri} .
-                     koah:category ?actualCategory .  # 🔍 실제 카테고리 확인
+                     koah:category {matched_category_uri} ;  # 👈 [중요] 여기 세미콜론(;)으로 수정됨
+                     koah:category ?actualCategory .
             
             OPTIONAL {{ ?subject schema:streetAddress ?address . }}
             OPTIONAL {{ ?subject schema:telephone ?tel . }}
@@ -676,8 +577,7 @@ def search_graphdb():
     
     # [케이스 2] 카테고리만 있음
     elif matched_category_uri:
-        print(f"   🔗 [링크드 데이터] '{matched_category}' → Category URI: {matched_category_uri}")
-        print(f"   🏷️  koah:category 관계를 통해 연결된 시설들을 검색합니다...")
+        print(f"   🔗 [카테고리 검색] {matched_category}")
         
         query = f"""
         PREFIX koah: <https://knowledgemap.kr/koah/def/>
@@ -696,15 +596,14 @@ def search_graphdb():
             OPTIONAL {{ ?subject schema:description ?description . }}
             
             BIND("{matched_category_uri}" AS ?type)
-            BIND("카테고리기반(링크드데이터)" AS ?category)
+            BIND("카테고리기반" AS ?category)
         }}
         LIMIT 100
         """
     
     # [케이스 3] 구 이름만 있음
     elif matched_gu_uri:
-        print(f"   🔗 [링크드 데이터] '{matched_gu}' → Wikidata URI: {matched_gu_uri}")
-        print(f"   📍 koad:Gu 관계를 통해 연결된 시설들을 검색합니다...")
+        print(f"   🔗 [지역 검색] {matched_gu}")
         
         query = f"""
         PREFIX koah: <https://knowledgemap.kr/koah/def/>
@@ -723,13 +622,16 @@ def search_graphdb():
             OPTIONAL {{ ?subject schema:description ?description . }}
             
             BIND("AnimalFacility" AS ?type)
-            BIND("위치기반(링크드데이터)" AS ?category)
+            BIND("위치기반" AS ?category)
         }}
         LIMIT 100
         """
     
     # [케이스 4] 일반 키워드 검색
     else:
+        # 안전한 검색을 위해 키워드 이스케이프 처리
+        safe_keyword = keyword.replace('"', '').replace("'", "")
+        
         query = f"""
         PREFIX koah: <https://knowledgemap.kr/koah/def/>
         PREFIX koad: <http://vocab.datahub.kr/def/administrative-division/>
@@ -739,48 +641,22 @@ def search_graphdb():
         SELECT DISTINCT ?subject ?label ?type ?address ?tel ?description ?category
         WHERE {{
             {{
-                # 이름 매칭
                 ?subject a koah:AnimalFacility ;
                          rdfs:label ?label .
-                
                 OPTIONAL {{ ?subject schema:streetAddress ?address . }}
                 OPTIONAL {{ ?subject schema:telephone ?tel . }}
                 OPTIONAL {{ ?subject schema:description ?description . }}
-                
-                BIND("AnimalFacility" AS ?type)
                 BIND("직접매칭" AS ?category)
-                
-                FILTER(CONTAINS(LCASE(?label), LCASE("{keyword}")))
+                FILTER(CONTAINS(LCASE(?label), LCASE("{safe_keyword}")))
             }}
             UNION
             {{
-                # 주소 매칭
                 ?subject a koah:AnimalFacility ;
                          rdfs:label ?label ;
                          schema:streetAddress ?address .
-                
                 OPTIONAL {{ ?subject schema:telephone ?tel . }}
-                OPTIONAL {{ ?subject schema:description ?description . }}
-                
-                BIND("AnimalFacility" AS ?type)
                 BIND("주소기반" AS ?category)
-                
-                FILTER(CONTAINS(LCASE(?address), LCASE("{keyword}")))
-            }}
-            UNION
-            {{
-                # 전화번호 매칭
-                ?subject a koah:AnimalFacility ;
-                         rdfs:label ?label ;
-                         schema:telephone ?tel .
-                
-                OPTIONAL {{ ?subject schema:streetAddress ?address . }}
-                OPTIONAL {{ ?subject schema:description ?description . }}
-                
-                BIND("AnimalFacility" AS ?type)
-                BIND("전화번호" AS ?category)
-                
-                FILTER(CONTAINS(?tel, "{keyword}"))
+                FILTER(CONTAINS(LCASE(?address), LCASE("{safe_keyword}")))
             }}
         }}
         LIMIT 100
@@ -791,98 +667,48 @@ def search_graphdb():
         sparql.setReturnFormat(JSON)
         results = sparql.query().convert()
         
-        # 결과 변환
         search_results = []
         seen_uris = set()
         
-        category_counts = {}
-        
         for binding in results["results"]["bindings"]:
             uri = binding.get("subject", {}).get("value", "")
-            
-            if uri in seen_uris:
-                continue
+            if uri in seen_uris: continue
             seen_uris.add(uri)
             
             label = binding.get("label", {}).get("value", "이름 없음")
             type_val = binding.get("type", {}).get("value", "")
-            
-            print(f"      [결과] {label} | Type: {type_val} | URI: {uri}")
-            
             address = binding.get("address", {}).get("value", "")
             tel = binding.get("tel", {}).get("value", "")
             description = binding.get("description", {}).get("value", "")
             category = binding.get("category", {}).get("value", "기타")
             
-            # 카테고리 카운트
-            category_counts[category] = category_counts.get(category, 0) + 1
-            
-            # 타입 정리
             if type_val.startswith("koah:"):
-                type_display = type_val.replace("koah:", "")
-            else:
-                type_display = type_val
-            
-            # 설명 생성
-            desc_parts = []
-            if address:
-                desc_parts.append(f"📍 {address}")
-            if tel:
-                desc_parts.append(f"☎️ {tel}")
-            if description:
-                desc_parts.append(description)
-            
-            final_description = " | ".join(desc_parts) if desc_parts else ""
-            
+                type_val = type_val.replace("koah:", "")
+                
             search_results.append({
                 "uri": uri,
                 "label": label,
-                "type": type_display,
-                "description": final_description[:300],
+                "type": type_val,
+                "description": description or address,
                 "category": category,
                 "address": address,
-                "tel": tel
+                "tel": tel,
+                # 지도 이동을 위해 좌표가 필요하지만 SPARQL 결과에 없다면 
+                # 프론트엔드의 Geocoder가 처리하도록 둠 (address 필수)
             })
-        
-        # 로그 출력
-        print(f"✅ [검색 완료] 총 {len(search_results)}개 결과")
-        print(f"   📊 카테고리별 분포:")
-        for cat, count in category_counts.items():
-            emoji = "🔗" if "링크드데이터" in cat or "복합조건" in cat else "📝"
-            print(f"      {emoji} {cat}: {count}개")
-        
-        # 링크드 데이터 활용 메시지
-        if matched_category and matched_gu:
-            print(f"   ✨✨ [복합 링크드 데이터 활용]")
-            print(f"      - koad:Gu 관계: {matched_gu}")
-            print(f"      - koah:category 관계: {matched_category}")
-            print(f"      - 두 관계를 동시에 만족하는 시설만 필터링!")
-        elif matched_category:
-            print(f"   ✨ 링크드 데이터 활용: koah:category 관계를 통해 '{matched_category}' 시설들을 찾았습니다!")
-        elif matched_gu:
-            print(f"   ✨ 링크드 데이터 활용: koad:Gu 관계를 통해 {matched_gu}의 시설들을 찾았습니다!")
-        
+            
+        print(f"✅ [검색 완료] {len(search_results)}건 발견")
         return jsonify({
             "results": search_results,
             "total": len(search_results),
-            "linkedData": bool(matched_category or matched_gu),
-            "isCompoundSearch": bool(matched_category and matched_gu),
-            "linkedDataInfo": (
-                f"복합조건: {matched_gu}({matched_gu_uri}) + {matched_category}({matched_category_uri})" 
-                if (matched_category and matched_gu)
-                else f"Category URI({matched_category_uri})와 koah:category 관계" if matched_category 
-                else f"Wikidata URI({matched_gu_uri})와 koad:Gu 관계" if matched_gu 
-                else None
-            )
+            "linkedData": bool(matched_category or matched_gu)
         }), 200
         
     except Exception as e:
         print(f"❌ [검색 오류] {e}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({
-            "error": f"검색 중 오류가 발생했습니다: {str(e)}"
-        }), 500
+        # 구체적인 에러 메시지를 보기 위해 출력
+        print(f"❌ 실패한 쿼리:\n{query}")
+        return jsonify({"error": str(e)}), 500
 
 
 

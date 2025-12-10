@@ -1,0 +1,37 @@
+<svg width="52" height="70" viewBox="0 0 52 70" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Pin Shape -->
+  <path d="M26 0C12 0 1 11 1 25C1 43 26 70 26 70C26 70 51 43 51 25C51 11 40 0 26 0Z" fill="#FF92C2"></path>
+
+  <!-- Bunny Head -->
+  <circle cx="26" cy="27" r="16" fill="white" stroke="#333" stroke-width="2"></circle>
+
+  <!-- Ears (Attached to head) -->
+  <!-- Left ear -->
+  <path d="M18 10 
+           C14 4, 20 2, 23 10 
+           C22 15, 20 18, 18 15 
+           Z"
+        fill="#FFE6F0" stroke="#333" stroke-width="1.5" />
+
+  <!-- Right ear -->
+  <path d="M34 10 
+           C38 4, 32 2, 29 10 
+           C30 15, 32 18, 34 15 
+           Z"
+        fill="#FFE6F0" stroke="#333" stroke-width="1.5" />
+
+  <!-- Eyes -->
+  <circle cx="21" cy="27" r="2.3" fill="#333"></circle>
+  <circle cx="31" cy="27" r="2.3" fill="#333"></circle>
+
+  <!-- Nose -->
+  <circle cx="26" cy="30" r="1.7" fill="#E67E22"></circle>
+
+  <!-- Mouth -->
+  <path d="M26 31 Q24 34 22.5 32" stroke="#333" stroke-width="1.5" fill="none"></path>
+  <path d="M26 31 Q28 34 29.5 32" stroke="#333" stroke-width="1.5" fill="none"></path>
+
+  <!-- Bunny Cheeks -->
+  <circle cx="19" cy="31" r="3" fill="#FFE6EF" opacity="0.9"/>
+  <circle cx="33" cy="31" r="3" fill="#FFE6EF" opacity="0.9"/>
+</svg>
